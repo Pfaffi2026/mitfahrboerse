@@ -1,249 +1,216 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#3D7A5F" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="MitFahr" />
-  <link rel="manifest" href="manifest.json" />
-  <link rel="apple-touch-icon" href="icon-192.png" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <meta name="theme-color" content="#3D7A5F"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="MitFahr"/>
+  <link rel="manifest" href="manifest.json"/>
+  <link rel="apple-touch-icon" href="icon-192.png"/>
   <title>MitFahr – Kreuzung → Dorf</title>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,700;1,400&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,700;1,400&display=swap" rel="stylesheet"/>
   <style>
-    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-    html, body, #root { height:100%; width:100%; }
-    body {
-      font-family:'Plus Jakarta Sans',sans-serif;
-      background:#111;
-      display:flex; justify-content:center; align-items:center;
-      min-height:100vh; min-height:100dvh;
-    }
-    #root { display:flex; justify-content:center; align-items:center; }
-    ::-webkit-scrollbar { display:none; }
-    input, select, textarea, button { font-family:inherit; }
-    @media (max-width:430px) {
-      body { background:#1A1A1A; align-items:flex-start; }
-      #root { width:100%; height:100%; }
-      .shell {
-        width:100% !important; height:100% !important;
-        height:100dvh !important; border-radius:0 !important;
-        box-shadow:none !important;
-      }
+    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+    html,body,#root{height:100%;width:100%;}
+    body{font-family:'Plus Jakarta Sans',sans-serif;background:#111;display:flex;justify-content:center;align-items:center;min-height:100vh;min-height:100dvh;}
+    #root{display:flex;justify-content:center;align-items:center;}
+    ::-webkit-scrollbar{display:none;}
+    input,select,textarea,button{font-family:inherit;}
+    @media(max-width:430px){
+      body{background:#1A1A1A;align-items:flex-start;}
+      #root{width:100%;height:100%;}
+      .shell{width:100%!important;height:100%!important;height:100dvh!important;border-radius:0!important;box-shadow:none!important;}
     }
   </style>
 </head>
 <body>
 <div id="root"></div>
-
-<!-- React -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
 
-<!-- Firebase -->
-<script type="module" id="firebase-init">
+<script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyBKtpF0rVqrU8HkGsRw4YR6hoedIqddYgs",
-    authDomain: "mitfahrboerse-35385.firebaseapp.com",
-    projectId: "mitfahrboerse-35385",
-    storageBucket: "mitfahrboerse-35385.firebasestorage.app",
-    messagingSenderId: "78122839384",
-    appId: "1:78122839384:web:6e1211eba196e24029c92d"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const db  = getFirestore(app);
-
-  // Expose to global scope for React app
-  window._db = db;
-  window._fs = { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp };
-  window._dbReady = true;
+  const app = initializeApp({
+    apiKey:"AIzaSyBKtpF0rVqrU8HkGsRw4YR6hoedIqddYgs",
+    authDomain:"mitfahrboerse-35385.firebaseapp.com",
+    projectId:"mitfahrboerse-35385",
+    storageBucket:"mitfahrboerse-35385.firebasestorage.app",
+    messagingSenderId:"78122839384",
+    appId:"1:78122839384:web:6e1211eba196e24029c92d"
+  });
+  const db=getFirestore(app);
+  window._db=db;
+  window._fs={collection,onSnapshot,addDoc,updateDoc,deleteDoc,doc,serverTimestamp};
+  window._dbReady=true;
   window.dispatchEvent(new Event("db-ready"));
 </script>
 
 <script type="text/babel">
-const { useState, useEffect, useRef } = React;
+const {useState,useEffect}=React;
+const SAN="'Plus Jakarta Sans',sans-serif", PD="'Playfair Display',serif";
+const GREEN="#3D7A5F", DARK="#1A1A1A", CREAM="#F7F5F0", RED="#C0572E";
+const ROUTE={from:"Wangener Kreuzung",to:"Dorf"};
 
-const SAN   = "'Plus Jakarta Sans',sans-serif";
-const PD    = "'Playfair Display',serif";
-const GREEN = "#3D7A5F";
-const DARK  = "#1A1A1A";
-const CREAM = "#F7F5F0";
-const RED   = "#C0572E";
-const ROUTE = { from:"Wangener Kreuzung", to:"Dorf" };
+// ── helpers ───────────────────────────────────────────────────
+function fmt(d){
+  if(!d)return"";
+  const[,m,day]=d.split("-");
+  return`${parseInt(day)}. ${["","Jan","Feb","Mär","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"][parseInt(m)]}`;
+}
+function nowTime(){const d=new Date();return`${d.getHours()}:${String(d.getMinutes()).padStart(2,"0")}`;}
+function today(){return new Date().toISOString().split("T")[0];}
 
-// ── helpers ──────────────────────────────────────────────────
-function fmt(d) {
-  if (!d) return "";
-  const [,m,day] = d.split("-");
-  const mo = ["","Jan","Feb","Mär","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"];
-  return `${parseInt(day)}. ${mo[parseInt(m)]}`;
+// A ride is expired if its date+time is more than 2 hours in the past
+function isExpired(ride){
+  const dt=new Date(`${ride.date}T${ride.time}:00`);
+  return Date.now()-dt.getTime()>2*60*60*1000;
 }
-function nowTime() {
-  const d = new Date();
-  return `${d.getHours()}:${String(d.getMinutes()).padStart(2,"0")}`;
-}
-function today() { return new Date().toISOString().split("T")[0]; }
 
-// ── Firebase helpers ─────────────────────────────────────────
-async function dbAdd(ride) {
-  const { collection, addDoc, serverTimestamp } = window._fs;
-  await addDoc(collection(window._db, "rides"), { ...ride, createdAt: serverTimestamp() });
+// ── Device ID ─────────────────────────────────────────────────
+function getDeviceId(){
+  let id=localStorage.getItem("mf_device_id");
+  if(!id){id=Math.random().toString(36).slice(2)+Date.now().toString(36);localStorage.setItem("mf_device_id",id);}
+  return id;
 }
-async function dbUpdate(id, data) {
-  const { doc, updateDoc } = window._fs;
-  await updateDoc(doc(window._db, "rides", id), data);
+const DEVICE_ID=getDeviceId();
+
+// ── Firebase ──────────────────────────────────────────────────
+async function dbAdd(r){
+  const{collection,addDoc,serverTimestamp}=window._fs;
+  await addDoc(collection(window._db,"rides"),{...r,deviceId:DEVICE_ID,createdAt:serverTimestamp()});
 }
-async function dbDelete(id) {
-  const { doc, deleteDoc } = window._fs;
-  await deleteDoc(doc(window._db, "rides", id));
+async function dbUpdate(id,d){
+  const{doc,updateDoc}=window._fs;
+  await updateDoc(doc(window._db,"rides",id),d);
 }
-function dbListen(callback) {
-  const { collection, onSnapshot } = window._fs;
-  return onSnapshot(collection(window._db, "rides"), snap => {
-    const rides = snap.docs.map(d => ({ ...d.data(), _id: d.id }));
-    rides.sort((a,b) => (a.date+a.time).localeCompare(b.date+b.time));
-    callback(rides);
+async function dbDelete(id){
+  const{doc,deleteDoc}=window._fs;
+  await deleteDoc(doc(window._db,"rides",id));
+}
+function dbListen(cb){
+  const{collection,onSnapshot}=window._fs;
+  return onSnapshot(collection(window._db,"rides"),async snap=>{
+    const all=snap.docs.map(d=>({...d.data(),_id:d.id}));
+    // Auto-delete expired rides
+    for(const r of all){
+      if(isExpired(r)) await dbDelete(r._id);
+    }
+    const active=all.filter(r=>!isExpired(r));
+    active.sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+    cb(active);
   });
 }
 
-// ── primitives ───────────────────────────────────────────────
-function Btn({ label, onClick, color=GREEN, outline=false, full=false, disabled=false }) {
-  const [h,setH] = useState(false);
-  const bg = disabled?"#ccc": outline?"transparent": h?"#2e5e48":color;
-  return (
+// ── Primitives ────────────────────────────────────────────────
+const iSt={width:"100%",border:"1.5px solid #E0DBD0",borderRadius:12,padding:"11px 14px",fontFamily:SAN,fontSize:16,color:DARK,background:"#fff",outline:"none"};
+
+function Btn({label,onClick,color=GREEN,outline=false,full=false,disabled=false,small=false}){
+  const[h,setH]=useState(false);
+  return(
     <button onClick={disabled?undefined:onClick}
       onMouseEnter={()=>!disabled&&setH(true)} onMouseLeave={()=>setH(false)}
       style={{
-        width:full?"100%":"auto", border:outline?`2px solid ${disabled?"#ccc":color}`:"none",
-        background:bg, color:outline?(disabled?"#ccc":color):"#fff", borderRadius:14,
-        padding:"12px 20px", fontSize:15, fontWeight:700, fontFamily:SAN,
+        width:full?"100%":"auto",
+        border:outline?`2px solid ${disabled?"#ccc":color}`:"none",
+        background:disabled?"#ccc":outline?"transparent":h?"#2e5e48":color,
+        color:outline?(disabled?"#ccc":color):"#fff",
+        borderRadius:12, padding:small?"8px 14px":"12px 20px",
+        fontSize:small?13:15, fontWeight:700,
         cursor:disabled?"not-allowed":"pointer", transition:"all 0.15s",
         transform:h&&!disabled?"scale(0.98)":"scale(1)", opacity:disabled?0.6:1,
       }}>{label}</button>
   );
 }
 
-const inputSt = {
-  width:"100%", border:"1.5px solid #E0DBD0", borderRadius:12,
-  padding:"11px 14px", fontFamily:SAN, fontSize:16,
-  color:DARK, background:"#fff", outline:"none",
-};
-
-function Field({ label, value, onChange, type="text", placeholder, rows }) {
-  return (
-    <div style={{ marginBottom:14 }}>
-      <label style={{ display:"block", fontSize:11, fontWeight:700, color:GREEN,
-        letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:5 }}>{label}</label>
+function Field({label,value,onChange,type="text",placeholder,rows,min}){
+  return(
+    <div style={{marginBottom:14}}>
+      <label style={{display:"block",fontSize:11,fontWeight:700,color:GREEN,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:5}}>{label}</label>
       {rows
-        ? <textarea value={value} onChange={e=>onChange(e.target.value)}
-            placeholder={placeholder} rows={rows} style={{...inputSt,resize:"none"}} />
-        : <input type={type} value={value} onChange={e=>onChange(e.target.value)}
-            placeholder={placeholder} style={inputSt} />}
+        ?<textarea value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} rows={rows} style={{...iSt,resize:"none"}}/>
+        :<input type={type} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} min={min} style={iSt}/>}
     </div>
   );
 }
 
-function DarkHeader({ eyebrow, title, sub, children }) {
-  return (
-    <div style={{
-      background:DARK, borderRadius:"0 0 28px 28px", flexShrink:0,
-      padding:"max(env(safe-area-inset-top,0px) + 16px, 52px) 20px 20px",
-    }}>
-      {eyebrow && <p style={{ color:GREEN, fontSize:11, fontWeight:700, letterSpacing:"0.1em", marginBottom:4 }}>{eyebrow}</p>}
-      <h2 style={{ fontFamily:PD, color:CREAM, fontSize:26, lineHeight:1.2 }}>{title}</h2>
-      {sub && <p style={{ color:"#888", fontSize:13, marginTop:4 }}>{sub}</p>}
+function DarkHeader({eyebrow,title,sub,children}){
+  return(
+    <div style={{background:DARK,borderRadius:"0 0 28px 28px",flexShrink:0,padding:"max(env(safe-area-inset-top,0px) + 16px, 52px) 20px 20px"}}>
+      {eyebrow&&<p style={{color:GREEN,fontSize:11,fontWeight:700,letterSpacing:"0.1em",marginBottom:4}}>{eyebrow}</p>}
+      <h2 style={{fontFamily:PD,color:CREAM,fontSize:26,lineHeight:1.2}}>{title}</h2>
+      {sub&&<p style={{color:"#888",fontSize:13,marginTop:4}}>{sub}</p>}
       {children}
     </div>
   );
 }
 
-// ── LOADING ───────────────────────────────────────────────────
-function Loading() {
-  return (
-    <div style={{ height:"100%", background:DARK, display:"flex", flexDirection:"column",
-      alignItems:"center", justifyContent:"center", gap:16 }}>
-      <div style={{ fontSize:48 }}>🚗</div>
-      <p style={{ color:GREEN, fontSize:13, fontWeight:600, letterSpacing:"0.1em" }}>VERBINDE…</p>
-    </div>
-  );
-}
-
-// ── ROLE PICKER ───────────────────────────────────────────────
-function RolePicker({ onPick }) {
-  return (
-    <div style={{ height:"100%", background:DARK, display:"flex", flexDirection:"column",
-      alignItems:"center", justifyContent:"center", padding:32, gap:20 }}>
-      <p style={{ color:GREEN, fontSize:12, fontWeight:700, letterSpacing:"0.12em" }}>MITFAHR APP</p>
-      <h1 style={{ fontFamily:PD, color:CREAM, fontSize:32, textAlign:"center", lineHeight:1.2 }}>
-        {ROUTE.from}<br/><em style={{ color:GREEN }}>→ {ROUTE.to}</em>
-      </h1>
-      <p style={{ color:"#777", fontSize:13, textAlign:"center", marginBottom:4 }}>Wer bist du heute?</p>
-      {[
-        { role:"driver",    emoji:"🚗", label:"Ich fahre",      sub:"Fahrten eintragen & verwalten" },
-        { role:"passenger", emoji:"🙋", label:"Ich möchte mit", sub:"Fahrt auswählen & bestätigen"  },
-      ].map(r => (
-        <button key={r.role} onClick={()=>onPick(r.role)} style={{
-          width:"100%", background:"#222", border:"1.5px solid #333",
-          borderRadius:18, padding:"18px 20px", cursor:"pointer", textAlign:"left", fontFamily:SAN,
-        }}
-          onMouseEnter={e=>{ e.currentTarget.style.borderColor=GREEN; e.currentTarget.style.background="#1a2e24"; }}
-          onMouseLeave={e=>{ e.currentTarget.style.borderColor="#333"; e.currentTarget.style.background="#222"; }}>
-          <div style={{ color:CREAM, fontSize:17, fontWeight:700 }}>{r.emoji}  {r.label}</div>
-          <div style={{ color:"#666", fontSize:12, marginTop:3 }}>{r.sub}</div>
-        </button>
-      ))}
-    </div>
-  );
-}
-
 // ── RIDE FORM ─────────────────────────────────────────────────
-function RideForm({ initial, onSave, onCancel }) {
-  const [driverName, setDriverName] = useState(initial?.driverName || "");
-  const [date,  setDate]  = useState(initial?.date  || today());
-  const [time,  setTime]  = useState(initial?.time  || "07:30");
-  const [seats, setSeats] = useState(String(initial?.seats || "3"));
-  const [note,  setNote]  = useState(initial?.note  || "");
-  const [saving, setSaving] = useState(false);
+function RideForm({initial,onSave,onCancel}){
+  const[driverName,setDriverName]=useState(initial?.driverName||"");
+  const[date,setDate]=useState(initial?.date||today());
+  const[time,setTime]=useState(initial?.time||"07:30");
+  const[seats,setSeats]=useState(String(initial?.seats||"3"));
+  const[note,setNote]=useState(initial?.note||"");
+  const[saving,setSaving]=useState(false);
+  const[dateErr,setDateErr]=useState("");
 
-  async function save() {
-    if (!driverName.trim() || !date || !time || saving) return;
+  // Validate: no past dates
+  function validateDate(d){
+    if(d<today()){setDateErr("Datum darf nicht in der Vergangenheit liegen");}
+    else{setDateErr("");}
+    setDate(d);
+  }
+
+  // If editing and date was in past, reset to today
+  function validateTime(t){
+    if(date===today()){
+      const[h,m]=t.split(":").map(Number);
+      const now=new Date();
+      if(h<now.getHours()||(h===now.getHours()&&m<=now.getMinutes())){
+        setTime(`${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()+5).padStart(2,"0")}`);
+        return;
+      }
+    }
+    setTime(t);
+  }
+
+  async function save(){
+    if(!driverName.trim()||!date||!time||saving||dateErr)return;
+    if(date<today()){setDateErr("Datum darf nicht in der Vergangenheit liegen");return;}
     setSaving(true);
-    const s = parseInt(seats) || 3;
-    const data = {
-      driverName: driverName.trim(),
-      date, time, seats: s, note: note.trim(),
-      confirmed: initial?.confirmed || [],
-      seatsLeft: s - (initial?.confirmed?.length || 0),
-    };
-    await onSave(data);
+    const s=parseInt(seats)||3;
+    await onSave({
+      driverName:driverName.trim(), date, time, seats:s,
+      note:note.trim(),
+      confirmed:initial?.confirmed||[],
+      seatsLeft:s-(initial?.confirmed?.length||0),
+    });
     setSaving(false);
   }
 
-  const valid = driverName.trim() && date && time;
-  return (
-    <div style={{ height:"100%", background:CREAM, display:"flex", flexDirection:"column" }}>
-      <DarkHeader eyebrow="FAHRER"
-        title={initial ? "Fahrt bearbeiten" : "Neue Fahrt"}
-        sub={`${ROUTE.from} → ${ROUTE.to}`} />
-      <div style={{ flex:1, overflowY:"auto", padding:"22px 20px 20px" }}>
-        <Field label="Dein Name" value={driverName} onChange={setDriverName} placeholder="Vorname Nachname" />
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 12px" }}>
-          <Field label="Datum"   value={date}  onChange={setDate}  type="date" />
-          <Field label="Abfahrt" value={time}  onChange={setTime}  type="time" />
+  const valid=driverName.trim()&&date&&time&&!dateErr;
+
+  return(
+    <div style={{height:"100%",background:CREAM,display:"flex",flexDirection:"column"}}>
+      <DarkHeader eyebrow="FAHRER" title={initial?"Fahrt bearbeiten":"Neue Fahrt"} sub={`${ROUTE.from} → ${ROUTE.to}`}/>
+      <div style={{flex:1,overflowY:"auto",padding:"22px 20px 20px"}}>
+        <Field label="Dein Name" value={driverName} onChange={setDriverName} placeholder="Vorname Nachname"/>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 12px"}}>
+          <div>
+            <Field label="Datum" value={date} onChange={validateDate} type="date" min={today()}/>
+            {dateErr&&<p style={{color:RED,fontSize:11,marginTop:-10,marginBottom:10}}>{dateErr}</p>}
+          </div>
+          <Field label="Abfahrt" value={time} onChange={validateTime} type="time"/>
         </div>
-        <Field label="Freie Plätze" value={seats} onChange={setSeats} type="number" placeholder="3" />
-        <Field label="Hinweis (optional)" value={note} onChange={setNote}
-          placeholder="z.B. pünktlich, Nichtraucher…" rows={3} />
-        <div style={{ display:"flex", gap:10 }}>
-          {onCancel && <Btn label="Abbrechen" onClick={onCancel} outline full />}
-          <Btn label={saving ? "Speichert…" : (initial ? "✓  Speichern" : "✓  Eintragen")}
-            onClick={save} disabled={!valid||saving} full />
+        <Field label="Freie Plätze" value={seats} onChange={setSeats} type="number" placeholder="3"/>
+        <Field label="Hinweis (optional)" value={note} onChange={setNote} placeholder="z.B. pünktlich, Nichtraucher…" rows={3}/>
+        <div style={{display:"flex",gap:10}}>
+          {onCancel&&<Btn label="Abbrechen" onClick={onCancel} outline full/>}
+          <Btn label={saving?"Speichert…":(initial?"✓  Speichern":"✓  Eintragen")} onClick={save} disabled={!valid||saving} full/>
         </div>
       </div>
     </div>
@@ -251,263 +218,259 @@ function RideForm({ initial, onSave, onCancel }) {
 }
 
 // ── DRIVER DETAIL ─────────────────────────────────────────────
-function DriverDetail({ ride, onEdit, onDelete, onBack }) {
-  return (
-    <div style={{ height:"100%", background:CREAM, display:"flex", flexDirection:"column" }}>
+function DriverDetail({ride,onEdit,onDelete,onBack,isOwner}){
+  const[confirmDel,setConfirmDel]=useState(false);
+  return(
+    <div style={{height:"100%",background:CREAM,display:"flex",flexDirection:"column"}}>
       <DarkHeader eyebrow="DEINE FAHRT" title={`${ROUTE.from} → ${ROUTE.to}`}>
-        <p style={{ color:"#aaa", fontSize:13, marginTop:4 }}>🚗 {ride.driverName}</p>
-        <div style={{ display:"flex", gap:8, marginTop:12, flexWrap:"wrap" }}>
+        <p style={{color:"#aaa",fontSize:13,marginTop:4}}>🚗 {ride.driverName}</p>
+        <div style={{display:"flex",gap:8,marginTop:12,flexWrap:"wrap"}}>
           {[["📅",fmt(ride.date)],["🕐",ride.time+" Uhr"],["💺",`${ride.confirmed.length}/${ride.seats}`]].map(([ic,v])=>(
-            <div key={v} style={{ background:"#2A2A2A", borderRadius:12, padding:"8px 12px",
-              fontSize:13, color:CREAM, display:"flex", gap:5, alignItems:"center" }}>{ic} {v}</div>
+            <div key={v} style={{background:"#2A2A2A",borderRadius:12,padding:"8px 12px",fontSize:13,color:CREAM,display:"flex",gap:5,alignItems:"center"}}>{ic} {v}</div>
           ))}
         </div>
       </DarkHeader>
 
-      <div style={{ flex:1, overflowY:"auto", padding:"18px 20px 10px" }}>
-        <p style={{ fontSize:11, fontWeight:700, color:GREEN, letterSpacing:"0.08em",
-          textTransform:"uppercase", marginBottom:10 }}>
+      <div style={{flex:1,overflowY:"auto",padding:"18px 20px 10px"}}>
+        <p style={{fontSize:11,fontWeight:700,color:GREEN,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:10}}>
           Bestätigungen ({ride.confirmed.length} / {ride.seats})
         </p>
-        {ride.confirmed.length === 0 ? (
-          <div style={{ textAlign:"center", padding:"32px 0" }}>
-            <div style={{ fontSize:44 }}>⏳</div>
-            <p style={{ fontFamily:PD, fontStyle:"italic", fontSize:16, marginTop:10, color:"#aaa" }}>
-              Noch keine Mitfahrer
-            </p>
+        {ride.confirmed.length===0?(
+          <div style={{textAlign:"center",padding:"32px 0"}}>
+            <div style={{fontSize:44}}>⏳</div>
+            <p style={{fontFamily:PD,fontStyle:"italic",fontSize:16,marginTop:10,color:"#aaa"}}>Noch keine Mitfahrer</p>
           </div>
-        ) : ride.confirmed.map((p,i)=>(
-          <div key={i} style={{ background:"#fff", borderRadius:14, padding:"12px 14px",
-            marginBottom:8, display:"flex", alignItems:"center", gap:12,
-            boxShadow:"0 2px 8px rgba(0,0,0,0.05)" }}>
-            <div style={{ width:36,height:36,borderRadius:"50%",background:GREEN,
-              display:"flex",alignItems:"center",justifyContent:"center",
-              color:"#fff",fontWeight:700,fontSize:14 }}>{p.name[0].toUpperCase()}</div>
-            <div style={{ flex:1 }}>
-              <div style={{ fontWeight:700, fontSize:14 }}>{p.name}</div>
-              <div style={{ fontSize:11, color:"#aaa" }}>bestätigt {p.time}</div>
+        ):ride.confirmed.map((p,i)=>(
+          <div key={i} style={{background:"#fff",borderRadius:14,padding:"12px 14px",marginBottom:8,display:"flex",alignItems:"center",gap:12,boxShadow:"0 2px 8px rgba(0,0,0,0.05)"}}>
+            <div style={{width:36,height:36,borderRadius:"50%",background:GREEN,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:700,fontSize:14}}>{p.name[0].toUpperCase()}</div>
+            <div style={{flex:1}}>
+              <div style={{fontWeight:700,fontSize:14}}>{p.name}</div>
+              <div style={{fontSize:11,color:"#aaa"}}>bestätigt {p.time}</div>
             </div>
-            <span style={{ fontSize:18 }}>✅</span>
+            <span style={{fontSize:18}}>✅</span>
           </div>
         ))}
-        {ride.note ? (
-          <div style={{ background:"#fff", borderRadius:14, padding:"12px 14px",
-            fontSize:13, color:"#666", marginTop:8, borderLeft:`3px solid ${GREEN}` }}>
-            💬 {ride.note}
-          </div>
-        ) : null}
+        {ride.note&&<div style={{background:"#fff",borderRadius:14,padding:"12px 14px",fontSize:13,color:"#666",marginTop:8,borderLeft:`3px solid ${GREEN}`}}>💬 {ride.note}</div>}
       </div>
 
-      <div style={{ padding:"12px 20px 28px", display:"flex", gap:10 }}>
-        <Btn label="← Zurück"      onClick={onBack}   outline />
-        <Btn label="✏️ Bearbeiten"  onClick={onEdit}   outline full />
-        <Btn label="🗑"             onClick={onDelete}  color={RED} />
+      <div style={{padding:"12px 20px 28px"}}>
+        {isOwner&&confirmDel?(
+          <div style={{background:"#fff",borderRadius:14,padding:"14px",marginBottom:10,border:`1.5px solid ${RED}`}}>
+            <p style={{fontSize:13,marginBottom:10,textAlign:"center"}}>Fahrt wirklich löschen?</p>
+            <div style={{display:"flex",gap:8}}>
+              <Btn label="Abbrechen" onClick={()=>setConfirmDel(false)} outline full small/>
+              <Btn label="Löschen" onClick={onDelete} color={RED} full small/>
+            </div>
+          </div>
+        ):null}
+        <div style={{display:"flex",gap:10}}>
+          <Btn label="← Zurück" onClick={onBack} outline/>
+          {isOwner&&<><Btn label="✏️ Bearbeiten" onClick={onEdit} outline full/><Btn label="🗑" onClick={()=>setConfirmDel(true)} color={RED}/></>}
+        </div>
       </div>
     </div>
   );
 }
 
 // ── DRIVER SCREEN ─────────────────────────────────────────────
-function DriverScreen({ rides }) {
-  const [view,     setView]     = useState("list");
-  const [selected, setSelected] = useState(null);
+function DriverScreen({rides}){
+  const[view,setView]=useState("list");
+  const[sel,setSel]=useState(null);
+  const live=sel?rides.find(r=>r._id===sel._id)||sel:null;
 
-  const live = selected ? rides.find(r=>r._id===selected._id) || selected : null;
+  if(view==="form") return <RideForm onSave={async d=>{await dbAdd(d);setView("list");}} onCancel={()=>setView("list")}/>;
+  if(view==="detail"&&live) return <DriverDetail ride={live} onBack={()=>setView("list")} onEdit={()=>setView("edit")} onDelete={async()=>{await dbDelete(live._id);setView("list");}} isOwner={live.deviceId===DEVICE_ID}/>;
+  if(view==="edit"&&live) return <RideForm initial={live} onSave={async d=>{await dbUpdate(live._id,d);setSel({...live,...d});setView("detail");}} onCancel={()=>setView("detail")}/>;
 
-  if (view==="form") return (
-    <RideForm
-      onSave={async data => { await dbAdd(data); setView("list"); }}
-      onCancel={()=>setView("list")} />
-  );
-  if (view==="detail" && live) return (
-    <DriverDetail ride={live}
-      onBack={()=>setView("list")}
-      onEdit={()=>setView("edit")}
-      onDelete={async()=>{ await dbDelete(live._id); setView("list"); }} />
-  );
-  if (view==="edit" && live) return (
-    <RideForm initial={live}
-      onSave={async data => { await dbUpdate(live._id, data); setSelected({...live,...data}); setView("detail"); }}
-      onCancel={()=>setView("detail")} />
-  );
-
-  return (
-    <div style={{ height:"100%", background:CREAM, display:"flex", flexDirection:"column" }}>
-      <DarkHeader eyebrow="FAHRER" title="Meine Fahrten" sub={`${ROUTE.from} → ${ROUTE.to}`} />
-      <div style={{ flex:1, overflowY:"auto", padding:"16px 20px 10px" }}>
-        {rides.length===0 ? (
-          <div style={{ textAlign:"center", padding:"48px 0" }}>
-            <div style={{ fontSize:52 }}>🚗</div>
-            <p style={{ fontFamily:PD, fontStyle:"italic", fontSize:17, marginTop:12, color:"#aaa" }}>Noch keine Fahrten</p>
-            <p style={{ color:"#bbb", fontSize:13, marginTop:6 }}>Trage deine erste Fahrt ein</p>
+  return(
+    <div style={{height:"100%",background:CREAM,display:"flex",flexDirection:"column"}}>
+      <DarkHeader eyebrow="FAHRER" title="Meine Fahrten" sub={`${ROUTE.from} → ${ROUTE.to}`}/>
+      <div style={{flex:1,overflowY:"auto",padding:"16px 20px 10px"}}>
+        {rides.length===0?(
+          <div style={{textAlign:"center",padding:"48px 0"}}>
+            <div style={{fontSize:52}}>🚗</div>
+            <p style={{fontFamily:PD,fontStyle:"italic",fontSize:17,marginTop:12,color:"#aaa"}}>Noch keine Fahrten</p>
+            <p style={{color:"#bbb",fontSize:13,marginTop:6}}>Trage deine erste Fahrt ein</p>
           </div>
-        ) : rides.map(r=>(
-          <button key={r._id} onClick={()=>{ setSelected(r); setView("detail"); }} style={{
-            width:"100%", background:"#fff", border:"1.5px solid transparent",
-            borderRadius:18, padding:"14px 16px", marginBottom:10, textAlign:"left",
-            cursor:"pointer", fontFamily:SAN, boxShadow:"0 2px 10px rgba(0,0,0,0.06)",
-          }}
+        ):rides.map(r=>(
+          <button key={r._id} onClick={()=>{setSel(r);setView("detail");}} style={{width:"100%",background:"#fff",border:"1.5px solid transparent",borderRadius:18,padding:"14px 16px",marginBottom:10,textAlign:"left",cursor:"pointer",fontFamily:SAN,boxShadow:"0 2px 10px rgba(0,0,0,0.06)",transition:"border-color 0.15s"}}
             onMouseEnter={e=>e.currentTarget.style.borderColor=GREEN}
             onMouseLeave={e=>e.currentTarget.style.borderColor="transparent"}>
-            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6 }}>
-              <span style={{ fontFamily:PD, fontSize:17, fontWeight:700 }}>{fmt(r.date)} · {r.time} Uhr</span>
-              <span style={{ background:r.seatsLeft>0?"#e8f3ee":"#fde8e0",
-                color:r.seatsLeft>0?GREEN:RED, fontSize:11, fontWeight:700, padding:"3px 9px", borderRadius:20 }}>
-                {r.seatsLeft>0?`${r.seatsLeft} frei`:"voll"}
-              </span>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
+              <span style={{fontFamily:PD,fontSize:17,fontWeight:700}}>{fmt(r.date)} · {r.time} Uhr</span>
+              <span style={{background:r.seatsLeft>0?"#e8f3ee":"#fde8e0",color:r.seatsLeft>0?GREEN:RED,fontSize:11,fontWeight:700,padding:"3px 9px",borderRadius:20}}>{r.seatsLeft>0?`${r.seatsLeft} frei`:"voll"}</span>
             </div>
-            <div style={{ fontSize:13, color:"#555", fontWeight:600 }}>🚗 {r.driverName}</div>
-            <div style={{ display:"flex", gap:12, marginTop:6, fontSize:12, color:"#aaa" }}>
+            <div style={{fontSize:13,color:"#555",fontWeight:600,display:"flex",alignItems:"center",gap:6}}>🚗 {r.driverName}{r.deviceId===DEVICE_ID&&<span style={{fontSize:10,background:"#e8f3ee",color:GREEN,padding:"1px 7px",borderRadius:10,fontWeight:700}}>meine</span>}</div>
+            <div style={{display:"flex",gap:12,marginTop:6,fontSize:12,color:"#aaa"}}>
               <span>💺 {r.confirmed.length}/{r.seats} bestätigt</span>
-              {r.note&&<span>💬 {r.note.slice(0,28)}{r.note.length>28?"…":""}</span>}
+              {r.note&&<span>💬 {r.note.slice(0,24)}{r.note.length>24?"…":""}</span>}
             </div>
           </button>
         ))}
       </div>
-      <div style={{ padding:"12px 20px 28px" }}>
-        <Btn label="+ Neue Fahrt eintragen" onClick={()=>setView("form")} full />
+      <div style={{padding:"12px 20px 28px"}}>
+        <Btn label="+ Neue Fahrt eintragen" onClick={()=>setView("form")} full/>
       </div>
     </div>
   );
 }
 
-// ── PASSENGER SCREEN ──────────────────────────────────────────
-function PassengerScreen({ rides }) {
-  const [selected, setSelected] = useState(null);
-  const [name,     setName]     = useState("");
-  const [done,     setDone]     = useState(false);
-  const [saving,   setSaving]   = useState(false);
+// ── PASSENGER ENTRY ───────────────────────────────────────────
+function PassengerEntry({person,onRemove,onRename}){
+  const[editing,setEditing]=useState(false);
+  const[newName,setNewName]=useState(person.name);
+  const[confirm,setConfirm]=useState(false);
 
-  const live = selected ? rides.find(r=>r._id===selected._id) || selected : null;
-
-  if (done && live) return (
-    <div style={{ height:"100%", background:CREAM, display:"flex", flexDirection:"column",
-      alignItems:"center", justifyContent:"center", padding:32, gap:14, textAlign:"center" }}>
-      <div style={{ fontSize:64 }}>🎉</div>
-      <h2 style={{ fontFamily:PD, fontSize:28 }}>Du bist dabei!</h2>
-      <p style={{ color:"#666", fontSize:14 }}>{fmt(live.date)} · {live.time} Uhr</p>
-      <div style={{ background:"#fff", borderRadius:18, padding:"18px 28px",
-        boxShadow:"0 4px 20px rgba(0,0,0,0.08)", marginTop:4 }}>
-        <p style={{ fontSize:11, color:"#aaa", marginBottom:4 }}>🚗 Fahrer</p>
-        <p style={{ fontFamily:PD, fontSize:19, fontWeight:700 }}>{live.driverName}</p>
-        <p style={{ fontSize:13, color:"#aaa", marginTop:6 }}>{ROUTE.from} → {ROUTE.to}</p>
+  if(confirm) return(
+    <div style={{background:"#fff",borderRadius:14,padding:"12px 14px",marginBottom:8,boxShadow:"0 2px 8px rgba(0,0,0,0.05)"}}>
+      <p style={{fontSize:13,marginBottom:10}}>„{person.name}" entfernen?</p>
+      <div style={{display:"flex",gap:8}}>
+        <Btn label="Abbrechen" onClick={()=>setConfirm(false)} outline full small/>
+        <Btn label="Entfernen" onClick={()=>{setConfirm(false);onRemove();}} color={RED} full small/>
       </div>
-      <button onClick={()=>{ setDone(false); setSelected(null); setName(""); }}
-        style={{ marginTop:10, background:"none", border:"none", color:"#aaa",
-          fontSize:13, cursor:"pointer", fontFamily:SAN }}>
+    </div>
+  );
+
+  if(editing) return(
+    <div style={{background:"#fff",borderRadius:14,padding:"12px 14px",marginBottom:8,boxShadow:"0 2px 8px rgba(0,0,0,0.05)"}}>
+      <input value={newName} onChange={e=>setNewName(e.target.value)} style={{...iSt,marginBottom:10,fontSize:14}}/>
+      <div style={{display:"flex",gap:8}}>
+        <Btn label="Abbrechen" onClick={()=>setEditing(false)} outline full small/>
+        <Btn label="✓ Speichern" onClick={()=>{setEditing(false);onRename(newName);}} full small/>
+      </div>
+    </div>
+  );
+
+  return(
+    <div style={{background:"#fff",borderRadius:14,padding:"12px 14px",marginBottom:8,display:"flex",alignItems:"center",gap:10,boxShadow:"0 2px 8px rgba(0,0,0,0.05)"}}>
+      <div style={{width:34,height:34,borderRadius:"50%",background:GREEN,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:700,fontSize:14}}>{person.name[0].toUpperCase()}</div>
+      <div style={{flex:1}}>
+        <div style={{fontWeight:700,fontSize:14}}>{person.name}</div>
+        <div style={{fontSize:11,color:"#aaa"}}>{person.time}</div>
+      </div>
+      <button onClick={()=>setEditing(true)} style={{background:"none",border:"none",cursor:"pointer",fontSize:16,padding:"4px 6px"}}>✏️</button>
+      <button onClick={()=>setConfirm(true)} style={{background:"none",border:"none",cursor:"pointer",fontSize:16,padding:"4px 6px"}}>🗑</button>
+    </div>
+  );
+}
+
+// ── PASSENGER SCREEN ──────────────────────────────────────────
+function PassengerScreen({rides}){
+  const[sel,setSel]=useState(null);
+  const[name,setName]=useState("");
+  const[done,setDone]=useState(false);
+  const[saving,setSaving]=useState(false);
+  const live=sel?rides.find(r=>r._id===sel._id)||sel:null;
+
+  // Success
+  if(done&&live) return(
+    <div style={{height:"100%",background:CREAM,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:32,gap:14,textAlign:"center"}}>
+      <div style={{fontSize:64}}>🎉</div>
+      <h2 style={{fontFamily:PD,fontSize:28}}>Du bist dabei!</h2>
+      <p style={{color:"#666",fontSize:14}}>{fmt(live.date)} · {live.time} Uhr</p>
+      <div style={{background:"#fff",borderRadius:18,padding:"18px 28px",boxShadow:"0 4px 20px rgba(0,0,0,0.08)",marginTop:4}}>
+        <p style={{fontSize:11,color:"#aaa",marginBottom:4}}>🚗 Fahrer</p>
+        <p style={{fontFamily:PD,fontSize:19,fontWeight:700}}>{live.driverName}</p>
+        <p style={{fontSize:13,color:"#aaa",marginTop:6}}>{ROUTE.from} → {ROUTE.to}</p>
+      </div>
+      <button onClick={()=>{setDone(false);setSel(null);setName("");}} style={{marginTop:10,background:"none",border:"none",color:"#aaa",fontSize:13,cursor:"pointer"}}>
         Andere Fahrt wählen
       </button>
     </div>
   );
 
-  if (live) {
-    const full      = live.seatsLeft <= 0;
-    const alreadyIn = live.confirmed?.find(p=>p.name.toLowerCase()===name.trim().toLowerCase());
+  // Detail
+  if(live){
+    const full=live.seatsLeft<=0;
+    const alreadyIn=live.confirmed?.findIndex(p=>p.name.toLowerCase()===name.trim().toLowerCase())!==-1&&name.trim()!=="";
 
-    async function confirm() {
-      if (!name.trim() || alreadyIn || saving) return;
+    async function confirm(){
+      if(!name.trim()||alreadyIn||saving)return;
       setSaving(true);
-      const newConfirmed = [...live.confirmed, { name:name.trim(), time:nowTime() }];
-      await dbUpdate(live._id, { confirmed:newConfirmed, seatsLeft:live.seatsLeft-1 });
+      const newC=[...(live.confirmed||[]),{name:name.trim(),time:nowTime()}];
+      await dbUpdate(live._id,{confirmed:newC,seatsLeft:live.seatsLeft-1});
       setSaving(false);
       setDone(true);
     }
 
-    return (
-      <div style={{ height:"100%", background:CREAM, display:"flex", flexDirection:"column" }}>
+    async function removeEntry(n){
+      const newC=live.confirmed.filter(p=>p.name!==n);
+      await dbUpdate(live._id,{confirmed:newC,seatsLeft:live.seatsLeft+1});
+    }
+
+    async function renameEntry(old,nw){
+      if(!nw.trim())return;
+      const newC=live.confirmed.map(p=>p.name===old?{...p,name:nw.trim()}:p);
+      await dbUpdate(live._id,{confirmed:newC});
+    }
+
+    return(
+      <div style={{height:"100%",background:CREAM,display:"flex",flexDirection:"column"}}>
         <DarkHeader eyebrow="MITFAHRER" title={`${ROUTE.from} → ${ROUTE.to}`}>
-          <p style={{ color:"#aaa", fontSize:13, marginTop:4 }}>🚗 {live.driverName}</p>
-          <div style={{ display:"flex", gap:8, marginTop:12, flexWrap:"wrap" }}>
-            {[["📅",fmt(live.date)],["🕐",live.time+" Uhr"],
-              ["💺",`${live.seatsLeft} Platz${live.seatsLeft!==1?"e":""} frei`]].map(([ic,v])=>(
-              <div key={v} style={{ background:"#2A2A2A", borderRadius:12, padding:"8px 12px",
-                fontSize:13, color:CREAM, display:"flex", gap:5, alignItems:"center" }}>{ic} {v}</div>
+          <p style={{color:"#aaa",fontSize:13,marginTop:4}}>🚗 {live.driverName}</p>
+          <div style={{display:"flex",gap:8,marginTop:12,flexWrap:"wrap"}}>
+            {[["📅",fmt(live.date)],["🕐",live.time+" Uhr"],["💺",`${live.seatsLeft} Platz${live.seatsLeft!==1?"e":""} frei`]].map(([ic,v])=>(
+              <div key={v} style={{background:"#2A2A2A",borderRadius:12,padding:"8px 12px",fontSize:13,color:CREAM,display:"flex",gap:5,alignItems:"center"}}>{ic} {v}</div>
             ))}
           </div>
         </DarkHeader>
 
-        <div style={{ flex:1, overflowY:"auto", padding:"18px 20px" }}>
-          {(live.confirmed||[]).length>0 && (
-            <div style={{ marginBottom:16 }}>
-              <p style={{ fontSize:11, fontWeight:700, color:GREEN, letterSpacing:"0.08em",
-                textTransform:"uppercase", marginBottom:8 }}>Bereits dabei ({live.confirmed.length})</p>
+        <div style={{flex:1,overflowY:"auto",padding:"18px 20px"}}>
+          {(live.confirmed||[]).length>0&&(
+            <div style={{marginBottom:16}}>
+              <p style={{fontSize:11,fontWeight:700,color:GREEN,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:8}}>
+                Bereits dabei ({live.confirmed.length})
+              </p>
               {live.confirmed.map((p,i)=>(
-                <div key={i} style={{ background:"#fff", borderRadius:12, padding:"10px 14px",
-                  marginBottom:6, display:"flex", alignItems:"center", gap:10,
-                  boxShadow:"0 1px 6px rgba(0,0,0,0.05)" }}>
-                  <div style={{ width:30,height:30,borderRadius:"50%",background:GREEN,
-                    display:"flex",alignItems:"center",justifyContent:"center",
-                    color:"#fff",fontWeight:700,fontSize:13 }}>{p.name[0].toUpperCase()}</div>
-                  <span style={{ fontSize:14, fontWeight:600 }}>{p.name}</span>
-                  <span style={{ marginLeft:"auto", color:GREEN }}>✓</span>
-                </div>
+                <PassengerEntry key={i} person={p} onRemove={()=>removeEntry(p.name)} onRename={nw=>renameEntry(p.name,nw)}/>
               ))}
             </div>
           )}
-          {live.note && (
-            <div style={{ background:"#fff", borderRadius:14, padding:"12px 14px",
-              fontSize:13, color:"#666", marginBottom:16, borderLeft:`3px solid ${GREEN}` }}>
-              💬 {live.note}
+
+          {live.note&&<div style={{background:"#fff",borderRadius:14,padding:"12px 14px",fontSize:13,color:"#666",marginBottom:16,borderLeft:`3px solid ${GREEN}`}}>💬 {live.note}</div>}
+
+          {full?(
+            <div style={{textAlign:"center",padding:"16px 0"}}>
+              <div style={{fontSize:40}}>🚫</div>
+              <p style={{fontFamily:PD,fontStyle:"italic",fontSize:17,marginTop:8,color:RED}}>Fahrt ist voll</p>
             </div>
-          )}
-          {full ? (
-            <div style={{ textAlign:"center", padding:"16px 0" }}>
-              <div style={{ fontSize:40 }}>🚫</div>
-              <p style={{ fontFamily:PD, fontStyle:"italic", fontSize:17, marginTop:8, color:RED }}>Fahrt ist voll</p>
-            </div>
-          ) : (
+          ):(
             <>
-              <Field label="Dein Name" value={name} onChange={setName} placeholder="Vorname" />
-              {alreadyIn && name.trim() && (
-                <p style={{ color:RED, fontSize:12, marginTop:-8, marginBottom:12 }}>
-                  Du hast diese Fahrt bereits bestätigt.
-                </p>
-              )}
-              <Btn label={saving?"Speichert…":"✓  Mitfahrt bestätigen"}
-                onClick={confirm} disabled={!name.trim()||!!alreadyIn||saving} full />
+              <Field label="Dein Name" value={name} onChange={setName} placeholder="Vorname"/>
+              {alreadyIn&&<p style={{color:RED,fontSize:12,marginTop:-8,marginBottom:12}}>Name bereits eingetragen.</p>}
+              <Btn label={saving?"Speichert…":"✓  Mitfahrt bestätigen"} onClick={confirm} disabled={!name.trim()||alreadyIn||saving} full/>
             </>
           )}
         </div>
-        <div style={{ padding:"10px 20px 28px" }}>
-          <Btn label="← Andere Fahrt wählen" onClick={()=>{ setSelected(null); setName(""); }} outline full />
+        <div style={{padding:"10px 20px 28px"}}>
+          <Btn label="← Andere Fahrt wählen" onClick={()=>{setSel(null);setName("");}} outline full/>
         </div>
       </div>
     );
   }
 
-  return (
-    <div style={{ height:"100%", background:CREAM, display:"flex", flexDirection:"column" }}>
-      <DarkHeader eyebrow="MITFAHRER" title="Fahrt wählen" sub={`${ROUTE.from} → ${ROUTE.to}`} />
-      <div style={{ flex:1, overflowY:"auto", padding:"16px 20px 20px" }}>
-        {rides.length===0 ? (
-          <div style={{ textAlign:"center", padding:"48px 0" }}>
-            <div style={{ fontSize:52 }}>⏳</div>
-            <p style={{ fontFamily:PD, fontStyle:"italic", fontSize:17, marginTop:12, color:"#aaa" }}>
-              Noch keine Fahrten verfügbar
-            </p>
+  // List
+  return(
+    <div style={{height:"100%",background:CREAM,display:"flex",flexDirection:"column"}}>
+      <DarkHeader eyebrow="MITFAHRER" title="Fahrt wählen" sub={`${ROUTE.from} → ${ROUTE.to}`}/>
+      <div style={{flex:1,overflowY:"auto",padding:"16px 20px 20px"}}>
+        {rides.length===0?(
+          <div style={{textAlign:"center",padding:"48px 0"}}>
+            <div style={{fontSize:52}}>⏳</div>
+            <p style={{fontFamily:PD,fontStyle:"italic",fontSize:17,marginTop:12,color:"#aaa"}}>Noch keine Fahrten verfügbar</p>
           </div>
-        ) : rides.map(r => {
-          const full = r.seatsLeft<=0;
-          return (
-            <button key={r._id} onClick={()=>setSelected(r)} style={{
-              width:"100%", background:"#fff", border:"1.5px solid transparent",
-              borderRadius:18, padding:"14px 16px", marginBottom:10, textAlign:"left",
-              cursor:"pointer", fontFamily:SAN, opacity:full?0.5:1,
-              boxShadow:"0 2px 10px rgba(0,0,0,0.06)",
-            }}
-              onMouseEnter={e=>{ if(!full) e.currentTarget.style.borderColor=GREEN; }}
+        ):rides.map(r=>{
+          const full=r.seatsLeft<=0;
+          return(
+            <button key={r._id} onClick={()=>setSel(r)} style={{width:"100%",background:"#fff",border:"1.5px solid transparent",borderRadius:18,padding:"14px 16px",marginBottom:10,textAlign:"left",cursor:"pointer",fontFamily:SAN,opacity:full?0.5:1,boxShadow:"0 2px 10px rgba(0,0,0,0.06)",transition:"border-color 0.15s"}}
+              onMouseEnter={e=>{if(!full)e.currentTarget.style.borderColor=GREEN;}}
               onMouseLeave={e=>e.currentTarget.style.borderColor="transparent"}>
-              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6 }}>
-                <span style={{ fontFamily:PD, fontSize:17, fontWeight:700 }}>{fmt(r.date)} · {r.time} Uhr</span>
-                <span style={{ background:full?"#fde8e0":"#e8f3ee",
-                  color:full?RED:GREEN, fontSize:11, fontWeight:700, padding:"3px 9px", borderRadius:20 }}>
-                  {full?"voll":`${r.seatsLeft} frei`}
-                </span>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
+                <span style={{fontFamily:PD,fontSize:17,fontWeight:700}}>{fmt(r.date)} · {r.time} Uhr</span>
+                <span style={{background:full?"#fde8e0":"#e8f3ee",color:full?RED:GREEN,fontSize:11,fontWeight:700,padding:"3px 9px",borderRadius:20}}>{full?"voll":`${r.seatsLeft} frei`}</span>
               </div>
-              <div style={{ fontSize:13, color:"#555", fontWeight:600 }}>🚗 {r.driverName}</div>
-              {r.note&&<div style={{ fontSize:12, color:"#aaa", marginTop:4 }}>
-                💬 {r.note.slice(0,40)}{r.note.length>40?"…":""}
-              </div>}
+              <div style={{fontSize:13,color:"#555",fontWeight:600}}>🚗 {r.driverName}</div>
+              {r.note&&<div style={{fontSize:12,color:"#aaa",marginTop:4}}>💬 {r.note.slice(0,40)}{r.note.length>40?"…":""}</div>}
             </button>
           );
         })}
@@ -517,116 +480,83 @@ function PassengerScreen({ rides }) {
 }
 
 // ── TAB BAR ───────────────────────────────────────────────────
-function TabBar({ tab, setTab }) {
-  return (
-    <div style={{
-      background:"rgba(255,255,255,0.97)", backdropFilter:"blur(12px)",
-      borderTop:"1px solid rgba(0,0,0,0.08)", display:"flex",
-      padding:"8px 0 max(env(safe-area-inset-bottom,0px) + 8px, 22px)",
-      flexShrink:0,
-    }}>
+function TabBar({tab,setTab}){
+  return(
+    <div style={{background:"rgba(255,255,255,0.97)",backdropFilter:"blur(12px)",borderTop:"1px solid rgba(0,0,0,0.08)",display:"flex",padding:"8px 0 max(env(safe-area-inset-bottom,0px) + 8px, 22px)",flexShrink:0}}>
       {[{id:"driver",emoji:"🚗",label:"Fahrer"},{id:"passenger",emoji:"🙋",label:"Mitfahrer"}].map(t=>(
-        <button key={t.id} onClick={()=>setTab(t.id)} style={{
-          flex:1, background:"none", border:"none", cursor:"pointer",
-          display:"flex", flexDirection:"column", alignItems:"center", gap:3, padding:"4px 0",
-          opacity:tab===t.id?1:0.35, transition:"opacity 0.15s",
-        }}>
-          <span style={{ fontSize:26 }}>{t.emoji}</span>
-          <span style={{ fontSize:10, fontWeight:tab===t.id?700:500,
-            color:tab===t.id?GREEN:"#888" }}>{t.label}</span>
+        <button key={t.id} onClick={()=>setTab(t.id)} style={{flex:1,background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3,padding:"4px 0",opacity:tab===t.id?1:0.35,transition:"opacity 0.15s"}}>
+          <span style={{fontSize:26}}>{t.emoji}</span>
+          <span style={{fontSize:10,fontWeight:tab===t.id?700:500,color:tab===t.id?GREEN:"#888"}}>{t.label}</span>
         </button>
       ))}
     </div>
   );
 }
 
-function Toast({ msg, visible }) {
-  return (
-    <div style={{
-      position:"fixed", bottom:90, left:"50%",
-      transform:`translateX(-50%) translateY(${visible?0:18}px)`,
-      opacity:visible?1:0, transition:"all 0.3s cubic-bezier(0.34,1.56,0.64,1)",
-      background:DARK, color:CREAM, padding:"10px 22px", borderRadius:20,
-      fontSize:13, fontWeight:500, whiteSpace:"nowrap", zIndex:999, pointerEvents:"none",
-    }}>{msg}</div>
-  );
-}
-
 // ── ROOT ──────────────────────────────────────────────────────
-function App() {
-  const [ready, setReady] = useState(window._dbReady||false);
-  const [role,  setRole]  = useState(null);
-  const [tab,   setTab]   = useState("driver");
-  const [rides, setRides] = useState([]);
-  const [toast, setToast] = useState({ msg:"", visible:false });
+function App(){
+  const[ready,setReady]=useState(window._dbReady||false);
+  const[role,setRole]=useState(null);
+  const[tab,setTab]=useState("driver");
+  const[rides,setRides]=useState([]);
 
-  // Wait for Firebase
   useEffect(()=>{
-    if (window._dbReady) { setReady(true); return; }
-    const h = ()=>setReady(true);
-    window.addEventListener("db-ready", h);
-    return ()=>window.removeEventListener("db-ready", h);
+    if(window._dbReady){setReady(true);return;}
+    const h=()=>setReady(true);
+    window.addEventListener("db-ready",h);
+    return()=>window.removeEventListener("db-ready",h);
   },[]);
 
-  // Realtime listener
   useEffect(()=>{
-    if (!ready) return;
-    const unsub = dbListen(setRides);
-    return ()=>unsub();
+    if(!ready)return;
+    return dbListen(setRides);
   },[ready]);
 
-  function showToast(msg) {
-    setToast({msg,visible:true});
-    setTimeout(()=>setToast(t=>({...t,visible:false})),2400);
-  }
+  const shellSt={width:390,height:"100vh",maxHeight:844,borderRadius:44,overflow:"hidden",position:"relative",display:"flex",flexDirection:"column",boxShadow:"0 40px 120px rgba(0,0,0,0.55), 0 0 0 10px #1A1A1A, 0 0 0 12px #333"};
 
-  if (!ready) return (
-    <div className="shell" style={{
-      width:390, height:"100vh", maxHeight:844, borderRadius:44,
-      overflow:"hidden", display:"flex", flexDirection:"column",
-      boxShadow:"0 40px 120px rgba(0,0,0,0.55), 0 0 0 10px #1A1A1A, 0 0 0 12px #333",
-    }}><Loading /></div>
+  if(!ready) return(
+    <div className="shell" style={{...shellSt,background:DARK,justifyContent:"center",alignItems:"center"}}>
+      <div style={{fontSize:48}}>🚗</div>
+      <p style={{color:GREEN,fontSize:13,fontWeight:600,marginTop:16,letterSpacing:"0.1em"}}>VERBINDE…</p>
+    </div>
   );
 
-  if (!role) return (
-    <div className="shell" style={{
-      width:390, height:"100vh", maxHeight:844, borderRadius:44,
-      overflow:"hidden", display:"flex", flexDirection:"column",
-      boxShadow:"0 40px 120px rgba(0,0,0,0.55), 0 0 0 10px #1A1A1A, 0 0 0 12px #333",
-    }}><RolePicker onPick={r=>{ setRole(r); setTab(r); }} /></div>
-  );
-
-  return (
-    <div className="shell" style={{
-      width:390, height:"100vh", maxHeight:844, borderRadius:44,
-      overflow:"hidden", position:"relative", display:"flex", flexDirection:"column",
-      boxShadow:"0 40px 120px rgba(0,0,0,0.55), 0 0 0 10px #1A1A1A, 0 0 0 12px #333",
-      background:CREAM,
-    }}>
-      <div style={{ flex:1, overflow:"hidden" }}>
-        {tab==="driver"    && <DriverScreen    rides={rides} />}
-        {tab==="passenger" && <PassengerScreen rides={rides} />}
+  if(!role) return(
+    <div className="shell" style={{...shellSt}}>
+      <div style={{height:"100%",background:DARK,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:32,gap:20}}>
+        <p style={{color:GREEN,fontSize:12,fontWeight:700,letterSpacing:"0.12em"}}>MITFAHR APP</p>
+        <h1 style={{fontFamily:PD,color:CREAM,fontSize:32,textAlign:"center",lineHeight:1.2}}>{ROUTE.from}<br/><em style={{color:GREEN}}>→ {ROUTE.to}</em></h1>
+        <p style={{color:"#777",fontSize:13,textAlign:"center",marginBottom:4}}>Wer bist du heute?</p>
+        {[{role:"driver",emoji:"🚗",label:"Ich fahre",sub:"Fahrten eintragen & verwalten"},{role:"passenger",emoji:"🙋",label:"Ich möchte mit",sub:"Fahrt auswählen & bestätigen"}].map(r=>(
+          <button key={r.role} onClick={()=>{setRole(r.role);setTab(r.role);}} style={{width:"100%",background:"#222",border:"1.5px solid #333",borderRadius:18,padding:"18px 20px",cursor:"pointer",textAlign:"left",fontFamily:SAN,transition:"all 0.15s"}}
+            onMouseEnter={e=>{e.currentTarget.style.borderColor=GREEN;e.currentTarget.style.background="#1a2e24";}}
+            onMouseLeave={e=>{e.currentTarget.style.borderColor="#333";e.currentTarget.style.background="#222";}}>
+            <div style={{color:CREAM,fontSize:17,fontWeight:700}}>{r.emoji}  {r.label}</div>
+            <div style={{color:"#666",fontSize:12,marginTop:3}}>{r.sub}</div>
+          </button>
+        ))}
       </div>
-      <TabBar tab={tab} setTab={setTab} />
-      <Toast msg={toast.msg} visible={toast.visible} />
-      <button onClick={()=>setRole(null)} style={{
-        position:"absolute", top:14, right:16,
-        background:"rgba(255,255,255,0.08)", border:"none",
-        color:"#888", fontSize:11, borderRadius:10,
-        padding:"4px 10px", cursor:"pointer", zIndex:50,
-      }}>⇄ Rolle</button>
+    </div>
+  );
+
+  return(
+    <div className="shell" style={{...shellSt,background:CREAM}}>
+      <div style={{flex:1,overflow:"hidden"}}>
+        {tab==="driver"&&<DriverScreen rides={rides}/>}
+        {tab==="passenger"&&<PassengerScreen rides={rides}/>}
+      </div>
+      <TabBar tab={tab} setTab={setTab}/>
+      <button onClick={()=>setRole(null)} style={{position:"absolute",top:14,right:16,background:"rgba(255,255,255,0.08)",border:"none",color:"#888",fontSize:11,borderRadius:10,padding:"4px 10px",cursor:"pointer",zIndex:50}}>⇄ Rolle</button>
     </div>
   );
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
 </script>
 
 <script>
-  if ("serviceWorker" in navigator) {
-    window.addEventListener("load", ()=>{
-      navigator.serviceWorker.register("/mitfahrboerse/sw.js").catch(()=>{});
-    });
+  if("serviceWorker" in navigator){
+    window.addEventListener("load",()=>navigator.serviceWorker.register("/mitfahrboerse/sw.js").catch(()=>{}));
   }
 </script>
 </body>
