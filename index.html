@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-title" content="MitFahr"/>
   <link rel="manifest" href="manifest.json"/>
   <link rel="apple-touch-icon" href="icon-192.png"/>
-  <title>MitFahr – Kreuzung → Dorf</title>
+  <title>MitFahr – Wangener Kreuzung ↔ Dorf</title>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,700;1,400&display=swap" rel="stylesheet"/>
   <style>
     *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
@@ -32,75 +32,86 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
 
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-  const app = initializeApp({
-    apiKey:"AIzaSyBKtpF0rVqrU8HkGsRw4YR6hoedIqddYgs",
-    authDomain:"mitfahrboerse-35385.firebaseapp.com",
-    projectId:"mitfahrboerse-35385",
-    storageBucket:"mitfahrboerse-35385.firebasestorage.app",
-    messagingSenderId:"78122839384",
-    appId:"1:78122839384:web:6e1211eba196e24029c92d"
-  });
+  import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import{getFirestore,collection,onSnapshot,addDoc,updateDoc,deleteDoc,doc,serverTimestamp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  const app=initializeApp({apiKey:"AIzaSyBKtpF0rVqrU8HkGsRw4YR6hoedIqddYgs",authDomain:"mitfahrboerse-35385.firebaseapp.com",projectId:"mitfahrboerse-35385",storageBucket:"mitfahrboerse-35385.firebasestorage.app",messagingSenderId:"78122839384",appId:"1:78122839384:web:6e1211eba196e24029c92d"});
   const db=getFirestore(app);
-  window._db=db;
-  window._fs={collection,onSnapshot,addDoc,updateDoc,deleteDoc,doc,serverTimestamp};
-  window._dbReady=true;
-  window.dispatchEvent(new Event("db-ready"));
+  window._db=db;window._fs={collection,onSnapshot,addDoc,updateDoc,deleteDoc,doc,serverTimestamp};
+  window._dbReady=true;window.dispatchEvent(new Event("db-ready"));
 </script>
 
 <script type="text/babel">
-const {useState,useEffect}=React;
-const SAN="'Plus Jakarta Sans',sans-serif", PD="'Playfair Display',serif";
-const GREEN="#3D7A5F", DARK="#1A1A1A", CREAM="#F7F5F0", RED="#C0572E";
-const ROUTE={from:"Wangener Kreuzung",to:"Dorf"};
+const{useState,useEffect,useRef}=React;
+const SAN="'Plus Jakarta Sans',sans-serif",PD="'Playfair Display',serif";
+const GREEN="#3D7A5F",DARK="#1A1A1A",CREAM="#F7F5F0",RED="#C0572E",AMBER="#C09A2E";
+
+const ROUTES=[
+  {id:"hin",  from:"Wangener Kreuzung", to:"Dorf"},
+  {id:"rueck",from:"Dorf",              to:"Wangener Kreuzung"},
+];
 
 // ── helpers ───────────────────────────────────────────────────
-function fmt(d){
-  if(!d)return"";
-  const[,m,day]=d.split("-");
-  return`${parseInt(day)}. ${["","Jan","Feb","Mär","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"][parseInt(m)]}`;
-}
+function fmt(d){if(!d)return"";const[,m,day]=d.split("-");return`${parseInt(day)}. ${["","Jan","Feb","Mär","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"][parseInt(m)]}`;}
 function nowTime(){const d=new Date();return`${d.getHours()}:${String(d.getMinutes()).padStart(2,"0")}`;}
 function today(){return new Date().toISOString().split("T")[0];}
-
-// A ride is expired if its date+time is more than 2 hours in the past
-function isExpired(ride){
-  const dt=new Date(`${ride.date}T${ride.time}:00`);
-  return Date.now()-dt.getTime()>2*60*60*1000;
-}
+function isExpired(r){return Date.now()-new Date(`${r.date}T${r.time}:00`).getTime()>2*60*60*1000;}
 
 // ── Device ID ─────────────────────────────────────────────────
-function getDeviceId(){
-  let id=localStorage.getItem("mf_device_id");
-  if(!id){id=Math.random().toString(36).slice(2)+Date.now().toString(36);localStorage.setItem("mf_device_id",id);}
-  return id;
+function getDeviceId(){let id=localStorage.getItem("mf_did");if(!id){id=Math.random().toString(36).slice(2)+Date.now().toString(36);localStorage.setItem("mf_did",id);}return id;}
+const DID=getDeviceId();
+
+// ── Push notifications ────────────────────────────────────────
+async function requestNotifPerm(){
+  if(!("Notification" in window))return"unsupported";
+  if(Notification.permission==="granted")return"granted";
+  if(Notification.permission==="denied")return"denied";
+  return await Notification.requestPermission();
 }
-const DEVICE_ID=getDeviceId();
+function sendNotif(title,body){
+  if(Notification.permission==="granted"){
+    new Notification(title,{body,icon:"/mitfahrboerse/icon-192.png"});
+  }
+}
 
 // ── Firebase ──────────────────────────────────────────────────
-async function dbAdd(r){
-  const{collection,addDoc,serverTimestamp}=window._fs;
-  await addDoc(collection(window._db,"rides"),{...r,deviceId:DEVICE_ID,createdAt:serverTimestamp()});
-}
-async function dbUpdate(id,d){
-  const{doc,updateDoc}=window._fs;
-  await updateDoc(doc(window._db,"rides",id),d);
-}
-async function dbDelete(id){
-  const{doc,deleteDoc}=window._fs;
-  await deleteDoc(doc(window._db,"rides",id));
-}
-function dbListen(cb){
+async function dbAdd(r){const{collection,addDoc,serverTimestamp}=window._fs;await addDoc(collection(window._db,"rides"),{...r,deviceId:DID,createdAt:serverTimestamp()});}
+async function dbUpdate(id,d){const{doc,updateDoc}=window._fs;await updateDoc(doc(window._db,"rides",id),d);}
+async function dbDelete(id){const{doc,deleteDoc}=window._fs;await deleteDoc(doc(window._db,"rides",id));}
+
+// Track previous confirmed counts to detect changes for notifications
+const prevConfirmed={}; 
+
+function dbListen(cb,onConfirmChange){
   const{collection,onSnapshot}=window._fs;
+  let first=true;
   return onSnapshot(collection(window._db,"rides"),async snap=>{
     const all=snap.docs.map(d=>({...d.data(),_id:d.id}));
-    // Auto-delete expired rides
-    for(const r of all){
-      if(isExpired(r)) await dbDelete(r._id);
-    }
+    for(const r of all){if(isExpired(r))await dbDelete(r._id);}
     const active=all.filter(r=>!isExpired(r));
     active.sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+
+    // Detect confirmation changes on MY rides (not first load)
+    if(!first){
+      for(const r of active){
+        if(r.deviceId===DID){
+          const prev=prevConfirmed[r._id];
+          const curr=r.confirmed.length;
+          if(prev!==undefined&&curr>prev){
+            const newPerson=r.confirmed[r.confirmed.length-1];
+            onConfirmChange&&onConfirmChange(`🎉 Neue Mitfahrt: ${newPerson.name} hat ${r.from} → ${r.to} bestätigt!`);
+            sendNotif("Neue Mitfahrt!",`${newPerson.name} fährt mit: ${r.from} → ${r.to}`);
+          }
+          if(prev!==undefined&&curr<prev){
+            onConfirmChange&&onConfirmChange(`ℹ️ Mitfahrt wurde storniert (${r.from} → ${r.to})`);
+            sendNotif("Mitfahrt storniert",`Eine Bestätigung für ${r.from} → ${r.to} wurde entfernt.`);
+          }
+        }
+        prevConfirmed[r._id]=r.confirmed.length;
+      }
+    } else {
+      for(const r of active)prevConfirmed[r._id]=r.confirmed.length;
+      first=false;
+    }
     cb(active);
   });
 }
@@ -110,46 +121,27 @@ const iSt={width:"100%",border:"1.5px solid #E0DBD0",borderRadius:12,padding:"11
 
 function Btn({label,onClick,color=GREEN,outline=false,full=false,disabled=false,small=false}){
   const[h,setH]=useState(false);
-  return(
-    <button onClick={disabled?undefined:onClick}
-      onMouseEnter={()=>!disabled&&setH(true)} onMouseLeave={()=>setH(false)}
-      style={{
-        width:full?"100%":"auto",
-        border:outline?`2px solid ${disabled?"#ccc":color}`:"none",
-        background:disabled?"#ccc":outline?"transparent":h?"#2e5e48":color,
-        color:outline?(disabled?"#ccc":color):"#fff",
-        borderRadius:12, padding:small?"8px 14px":"12px 20px",
-        fontSize:small?13:15, fontWeight:700,
-        cursor:disabled?"not-allowed":"pointer", transition:"all 0.15s",
-        transform:h&&!disabled?"scale(0.98)":"scale(1)", opacity:disabled?0.6:1,
-      }}>{label}</button>
-  );
+  return <button onClick={disabled?undefined:onClick} onMouseEnter={()=>!disabled&&setH(true)} onMouseLeave={()=>setH(false)} style={{width:full?"100%":"auto",border:outline?`2px solid ${disabled?"#ccc":color}`:"none",background:disabled?"#ccc":outline?"transparent":h?"#2e5e48":color,color:outline?(disabled?"#ccc":color):"#fff",borderRadius:12,padding:small?"8px 14px":"12px 20px",fontSize:small?13:15,fontWeight:700,cursor:disabled?"not-allowed":"pointer",transition:"all 0.15s",transform:h&&!disabled?"scale(0.98)":"scale(1)",opacity:disabled?0.6:1}}>{label}</button>;
 }
 
 function Field({label,value,onChange,type="text",placeholder,rows,min}){
-  return(
-    <div style={{marginBottom:14}}>
-      <label style={{display:"block",fontSize:11,fontWeight:700,color:GREEN,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:5}}>{label}</label>
-      {rows
-        ?<textarea value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} rows={rows} style={{...iSt,resize:"none"}}/>
-        :<input type={type} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} min={min} style={iSt}/>}
-    </div>
-  );
+  return <div style={{marginBottom:14}}><label style={{display:"block",fontSize:11,fontWeight:700,color:GREEN,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:5}}>{label}</label>{rows?<textarea value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} rows={rows} style={{...iSt,resize:"none"}}/>:<input type={type} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} min={min} style={iSt}/>}</div>;
 }
 
 function DarkHeader({eyebrow,title,sub,children}){
-  return(
-    <div style={{background:DARK,borderRadius:"0 0 28px 28px",flexShrink:0,padding:"max(env(safe-area-inset-top,0px) + 16px, 52px) 20px 20px"}}>
-      {eyebrow&&<p style={{color:GREEN,fontSize:11,fontWeight:700,letterSpacing:"0.1em",marginBottom:4}}>{eyebrow}</p>}
-      <h2 style={{fontFamily:PD,color:CREAM,fontSize:26,lineHeight:1.2}}>{title}</h2>
-      {sub&&<p style={{color:"#888",fontSize:13,marginTop:4}}>{sub}</p>}
-      {children}
-    </div>
-  );
+  return <div style={{background:DARK,borderRadius:"0 0 28px 28px",flexShrink:0,padding:"max(env(safe-area-inset-top,0px) + 16px, 52px) 20px 20px"}}>{eyebrow&&<p style={{color:GREEN,fontSize:11,fontWeight:700,letterSpacing:"0.1em",marginBottom:4}}>{eyebrow}</p>}<h2 style={{fontFamily:PD,color:CREAM,fontSize:24,lineHeight:1.2}}>{title}</h2>{sub&&<p style={{color:"#888",fontSize:13,marginTop:4}}>{sub}</p>}{children}</div>;
+}
+
+// ── Route badge ───────────────────────────────────────────────
+function RouteBadge({routeId,size="sm"}){
+  const r=ROUTES.find(x=>x.id===routeId)||ROUTES[0];
+  const small=size==="sm";
+  return <span style={{display:"inline-flex",alignItems:"center",gap:4,background:routeId==="hin"?"#e8f3ee":"#e8eef3",color:routeId==="hin"?GREEN:"#3D5F7A",fontSize:small?11:13,fontWeight:700,padding:small?"2px 8px":"4px 12px",borderRadius:20}}>{r.from} → {r.to}</span>;
 }
 
 // ── RIDE FORM ─────────────────────────────────────────────────
-function RideForm({initial,onSave,onCancel}){
+function RideForm({initial,onSave,onCancel,presetRouteId}){
+  const[routeId,setRouteId]=useState(initial?.routeId||presetRouteId||"hin");
   const[driverName,setDriverName]=useState(initial?.driverName||"");
   const[date,setDate]=useState(initial?.date||today());
   const[time,setTime]=useState(initial?.time||"07:30");
@@ -158,46 +150,50 @@ function RideForm({initial,onSave,onCancel}){
   const[saving,setSaving]=useState(false);
   const[dateErr,setDateErr]=useState("");
 
-  // Validate: no past dates
-  function validateDate(d){
-    if(d<today()){setDateErr("Datum darf nicht in der Vergangenheit liegen");}
-    else{setDateErr("");}
-    setDate(d);
-  }
+  const route=ROUTES.find(r=>r.id===routeId);
 
-  // If editing and date was in past, reset to today
+  function validateDate(d){
+    setDate(d);
+    setDateErr(d<today()?"Datum darf nicht in der Vergangenheit liegen":"");
+  }
   function validateTime(t){
     if(date===today()){
-      const[h,m]=t.split(":").map(Number);
-      const now=new Date();
+      const[h,m]=t.split(":").map(Number),now=new Date();
       if(h<now.getHours()||(h===now.getHours()&&m<=now.getMinutes())){
-        setTime(`${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()+5).padStart(2,"0")}`);
+        const nm=now.getMinutes()+5;
+        setTime(`${String(nm>=60?now.getHours()+1:now.getHours()).padStart(2,"0")}:${String(nm%60).padStart(2,"0")}`);
         return;
       }
     }
     setTime(t);
   }
-
   async function save(){
-    if(!driverName.trim()||!date||!time||saving||dateErr)return;
-    if(date<today()){setDateErr("Datum darf nicht in der Vergangenheit liegen");return;}
+    if(!driverName.trim()||!date||!time||saving||dateErr||date<today())return;
     setSaving(true);
     const s=parseInt(seats)||3;
-    await onSave({
-      driverName:driverName.trim(), date, time, seats:s,
-      note:note.trim(),
-      confirmed:initial?.confirmed||[],
-      seatsLeft:s-(initial?.confirmed?.length||0),
-    });
+    await onSave({routeId,from:route.from,to:route.to,driverName:driverName.trim(),date,time,seats:s,note:note.trim(),confirmed:initial?.confirmed||[],seatsLeft:s-(initial?.confirmed?.length||0)});
     setSaving(false);
   }
 
-  const valid=driverName.trim()&&date&&time&&!dateErr;
-
   return(
     <div style={{height:"100%",background:CREAM,display:"flex",flexDirection:"column"}}>
-      <DarkHeader eyebrow="FAHRER" title={initial?"Fahrt bearbeiten":"Neue Fahrt"} sub={`${ROUTE.from} → ${ROUTE.to}`}/>
-      <div style={{flex:1,overflowY:"auto",padding:"22px 20px 20px"}}>
+      <DarkHeader eyebrow="FAHRER" title={initial?"Fahrt bearbeiten":"Neue Fahrt"}/>
+      <div style={{flex:1,overflowY:"auto",padding:"20px 20px 20px"}}>
+        {/* Route selector */}
+        {!initial&&<div style={{marginBottom:16}}>
+          <label style={{display:"block",fontSize:11,fontWeight:700,color:GREEN,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:8}}>Strecke</label>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+            {ROUTES.map(r=>(
+              <button key={r.id} onClick={()=>setRouteId(r.id)} style={{padding:"12px 8px",borderRadius:12,border:`2px solid ${routeId===r.id?GREEN:"#E0DBD0"}`,background:routeId===r.id?"#e8f3ee":"#fff",cursor:"pointer",textAlign:"center",transition:"all 0.15s"}}>
+                <div style={{fontSize:11,fontWeight:700,color:routeId===r.id?GREEN:"#888"}}>{r.from}</div>
+                <div style={{fontSize:13,color:"#aaa",margin:"2px 0"}}>↓</div>
+                <div style={{fontSize:11,fontWeight:700,color:routeId===r.id?GREEN:"#888"}}>{r.to}</div>
+              </button>
+            ))}
+          </div>
+        </div>}
+        {initial&&<div style={{marginBottom:14}}><RouteBadge routeId={routeId} size="lg"/></div>}
+
         <Field label="Dein Name" value={driverName} onChange={setDriverName} placeholder="Vorname Nachname"/>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 12px"}}>
           <div>
@@ -207,10 +203,10 @@ function RideForm({initial,onSave,onCancel}){
           <Field label="Abfahrt" value={time} onChange={validateTime} type="time"/>
         </div>
         <Field label="Freie Plätze" value={seats} onChange={setSeats} type="number" placeholder="3"/>
-        <Field label="Hinweis (optional)" value={note} onChange={setNote} placeholder="z.B. pünktlich, Nichtraucher…" rows={3}/>
+        <Field label="Hinweis (optional)" value={note} onChange={setNote} placeholder="z.B. pünktlich…" rows={2}/>
         <div style={{display:"flex",gap:10}}>
           {onCancel&&<Btn label="Abbrechen" onClick={onCancel} outline full/>}
-          <Btn label={saving?"Speichert…":(initial?"✓  Speichern":"✓  Eintragen")} onClick={save} disabled={!valid||saving} full/>
+          <Btn label={saving?"Speichert…":(initial?"✓  Speichern":"✓  Eintragen")} onClick={save} disabled={!driverName.trim()||!date||!time||!!dateErr||saving} full/>
         </div>
       </div>
     </div>
@@ -222,7 +218,7 @@ function DriverDetail({ride,onEdit,onDelete,onBack,isOwner}){
   const[confirmDel,setConfirmDel]=useState(false);
   return(
     <div style={{height:"100%",background:CREAM,display:"flex",flexDirection:"column"}}>
-      <DarkHeader eyebrow="DEINE FAHRT" title={`${ROUTE.from} → ${ROUTE.to}`}>
+      <DarkHeader eyebrow="FAHRT DETAIL" title={`${ride.from} → ${ride.to}`}>
         <p style={{color:"#aaa",fontSize:13,marginTop:4}}>🚗 {ride.driverName}</p>
         <div style={{display:"flex",gap:8,marginTop:12,flexWrap:"wrap"}}>
           {[["📅",fmt(ride.date)],["🕐",ride.time+" Uhr"],["💺",`${ride.confirmed.length}/${ride.seats}`]].map(([ic,v])=>(
@@ -230,31 +226,21 @@ function DriverDetail({ride,onEdit,onDelete,onBack,isOwner}){
           ))}
         </div>
       </DarkHeader>
-
       <div style={{flex:1,overflowY:"auto",padding:"18px 20px 10px"}}>
-        <p style={{fontSize:11,fontWeight:700,color:GREEN,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:10}}>
-          Bestätigungen ({ride.confirmed.length} / {ride.seats})
-        </p>
+        <p style={{fontSize:11,fontWeight:700,color:GREEN,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:10}}>Bestätigungen ({ride.confirmed.length} / {ride.seats})</p>
         {ride.confirmed.length===0?(
-          <div style={{textAlign:"center",padding:"32px 0"}}>
-            <div style={{fontSize:44}}>⏳</div>
-            <p style={{fontFamily:PD,fontStyle:"italic",fontSize:16,marginTop:10,color:"#aaa"}}>Noch keine Mitfahrer</p>
-          </div>
+          <div style={{textAlign:"center",padding:"32px 0"}}><div style={{fontSize:44}}>⏳</div><p style={{fontFamily:PD,fontStyle:"italic",fontSize:16,marginTop:10,color:"#aaa"}}>Noch keine Mitfahrer</p></div>
         ):ride.confirmed.map((p,i)=>(
           <div key={i} style={{background:"#fff",borderRadius:14,padding:"12px 14px",marginBottom:8,display:"flex",alignItems:"center",gap:12,boxShadow:"0 2px 8px rgba(0,0,0,0.05)"}}>
             <div style={{width:36,height:36,borderRadius:"50%",background:GREEN,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:700,fontSize:14}}>{p.name[0].toUpperCase()}</div>
-            <div style={{flex:1}}>
-              <div style={{fontWeight:700,fontSize:14}}>{p.name}</div>
-              <div style={{fontSize:11,color:"#aaa"}}>bestätigt {p.time}</div>
-            </div>
+            <div style={{flex:1}}><div style={{fontWeight:700,fontSize:14}}>{p.name}</div><div style={{fontSize:11,color:"#aaa"}}>bestätigt {p.time}</div></div>
             <span style={{fontSize:18}}>✅</span>
           </div>
         ))}
         {ride.note&&<div style={{background:"#fff",borderRadius:14,padding:"12px 14px",fontSize:13,color:"#666",marginTop:8,borderLeft:`3px solid ${GREEN}`}}>💬 {ride.note}</div>}
       </div>
-
       <div style={{padding:"12px 20px 28px"}}>
-        {isOwner&&confirmDel?(
+        {isOwner&&confirmDel&&(
           <div style={{background:"#fff",borderRadius:14,padding:"14px",marginBottom:10,border:`1.5px solid ${RED}`}}>
             <p style={{fontSize:13,marginBottom:10,textAlign:"center"}}>Fahrt wirklich löschen?</p>
             <div style={{display:"flex",gap:8}}>
@@ -262,10 +248,10 @@ function DriverDetail({ride,onEdit,onDelete,onBack,isOwner}){
               <Btn label="Löschen" onClick={onDelete} color={RED} full small/>
             </div>
           </div>
-        ):null}
+        )}
         <div style={{display:"flex",gap:10}}>
           <Btn label="← Zurück" onClick={onBack} outline/>
-          {isOwner&&<><Btn label="✏️ Bearbeiten" onClick={onEdit} outline full/><Btn label="🗑" onClick={()=>setConfirmDel(true)} color={RED}/></>}
+          {isOwner&&<><Btn label="✏️" onClick={onEdit} outline/><Btn label="🗑" onClick={()=>setConfirmDel(true)} color={RED}/></>}
         </div>
       </div>
     </div>
@@ -273,44 +259,64 @@ function DriverDetail({ride,onEdit,onDelete,onBack,isOwner}){
 }
 
 // ── DRIVER SCREEN ─────────────────────────────────────────────
-function DriverScreen({rides}){
+function DriverScreen({rides,notifPerm,onRequestNotif,presetRoute,clearPreset}){
   const[view,setView]=useState("list");
   const[sel,setSel]=useState(null);
+  const[routeFilter,setRouteFilter]=useState("all");
   const live=sel?rides.find(r=>r._id===sel._id)||sel:null;
+  // Auto-open form with preset route from home screen
+  useEffect(()=>{ if(presetRoute){setView("form");clearPreset&&clearPreset();}},[]); 
 
-  if(view==="form") return <RideForm onSave={async d=>{await dbAdd(d);setView("list");}} onCancel={()=>setView("list")}/>;
-  if(view==="detail"&&live) return <DriverDetail ride={live} onBack={()=>setView("list")} onEdit={()=>setView("edit")} onDelete={async()=>{await dbDelete(live._id);setView("list");}} isOwner={live.deviceId===DEVICE_ID}/>;
+  if(view==="form") return <RideForm presetRouteId={presetRoute} onSave={async d=>{await dbAdd(d);setView("list");}} onCancel={()=>setView("list")}/>;
+  if(view==="detail"&&live) return <DriverDetail ride={live} isOwner={live.deviceId===DID} onBack={()=>setView("list")} onEdit={()=>setView("edit")} onDelete={async()=>{await dbDelete(live._id);setView("list");}}/>;
   if(view==="edit"&&live) return <RideForm initial={live} onSave={async d=>{await dbUpdate(live._id,d);setSel({...live,...d});setView("detail");}} onCancel={()=>setView("detail")}/>;
+
+  const filtered=routeFilter==="all"?rides:rides.filter(r=>r.routeId===routeFilter);
 
   return(
     <div style={{height:"100%",background:CREAM,display:"flex",flexDirection:"column"}}>
-      <DarkHeader eyebrow="FAHRER" title="Meine Fahrten" sub={`${ROUTE.from} → ${ROUTE.to}`}/>
-      <div style={{flex:1,overflowY:"auto",padding:"16px 20px 10px"}}>
-        {rides.length===0?(
-          <div style={{textAlign:"center",padding:"48px 0"}}>
-            <div style={{fontSize:52}}>🚗</div>
-            <p style={{fontFamily:PD,fontStyle:"italic",fontSize:17,marginTop:12,color:"#aaa"}}>Noch keine Fahrten</p>
-            <p style={{color:"#bbb",fontSize:13,marginTop:6}}>Trage deine erste Fahrt ein</p>
+      <DarkHeader eyebrow="FAHRER" title="Meine Fahrten">
+        {/* Route filter tabs */}
+        <div style={{display:"flex",gap:6,marginTop:12}}>
+          {[["all","Alle"],["hin","Kreuzung → Dorf"],["rueck","Dorf → Kreuzung"]].map(([id,label])=>(
+            <button key={id} onClick={()=>setRouteFilter(id)} style={{padding:"5px 12px",borderRadius:20,border:`1.5px solid ${routeFilter===id?"#fff":"rgba(255,255,255,0.2)"}`,background:routeFilter===id?"rgba(255,255,255,0.15)":"transparent",color:routeFilter===id?"#fff":"#aaa",fontSize:11,fontWeight:600,cursor:"pointer"}}>{label}</button>
+          ))}
+        </div>
+      </DarkHeader>
+
+      {/* Notification banner */}
+      {notifPerm==="default"&&(
+        <div style={{margin:"12px 16px 0",background:"#fff",borderRadius:14,padding:"12px 14px",display:"flex",alignItems:"center",gap:10,boxShadow:"0 2px 8px rgba(0,0,0,0.06)",border:`1.5px solid ${AMBER}33`}}>
+          <span style={{fontSize:22}}>🔔</span>
+          <div style={{flex:1}}>
+            <p style={{fontSize:13,fontWeight:600}}>Benachrichtigungen aktivieren</p>
+            <p style={{fontSize:11,color:"#aaa"}}>Erhalte eine Meldung wenn jemand bestätigt</p>
           </div>
-        ):rides.map(r=>(
+          <Btn label="Aktivieren" onClick={onRequestNotif} color={AMBER} small/>
+        </div>
+      )}
+
+      <div style={{flex:1,overflowY:"auto",padding:"12px 16px 10px"}}>
+        {filtered.length===0?(
+          <div style={{textAlign:"center",padding:"48px 0"}}><div style={{fontSize:52}}>🚗</div><p style={{fontFamily:PD,fontStyle:"italic",fontSize:17,marginTop:12,color:"#aaa"}}>Noch keine Fahrten</p></div>
+        ):filtered.map(r=>(
           <button key={r._id} onClick={()=>{setSel(r);setView("detail");}} style={{width:"100%",background:"#fff",border:"1.5px solid transparent",borderRadius:18,padding:"14px 16px",marginBottom:10,textAlign:"left",cursor:"pointer",fontFamily:SAN,boxShadow:"0 2px 10px rgba(0,0,0,0.06)",transition:"border-color 0.15s"}}
             onMouseEnter={e=>e.currentTarget.style.borderColor=GREEN}
             onMouseLeave={e=>e.currentTarget.style.borderColor="transparent"}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
-              <span style={{fontFamily:PD,fontSize:17,fontWeight:700}}>{fmt(r.date)} · {r.time} Uhr</span>
+              <RouteBadge routeId={r.routeId}/>
               <span style={{background:r.seatsLeft>0?"#e8f3ee":"#fde8e0",color:r.seatsLeft>0?GREEN:RED,fontSize:11,fontWeight:700,padding:"3px 9px",borderRadius:20}}>{r.seatsLeft>0?`${r.seatsLeft} frei`:"voll"}</span>
             </div>
-            <div style={{fontSize:13,color:"#555",fontWeight:600,display:"flex",alignItems:"center",gap:6}}>🚗 {r.driverName}{r.deviceId===DEVICE_ID&&<span style={{fontSize:10,background:"#e8f3ee",color:GREEN,padding:"1px 7px",borderRadius:10,fontWeight:700}}>meine</span>}</div>
-            <div style={{display:"flex",gap:12,marginTop:6,fontSize:12,color:"#aaa"}}>
-              <span>💺 {r.confirmed.length}/{r.seats} bestätigt</span>
-              {r.note&&<span>💬 {r.note.slice(0,24)}{r.note.length>24?"…":""}</span>}
+            <div style={{fontFamily:PD,fontSize:16,fontWeight:700,margin:"4px 0"}}>{fmt(r.date)} · {r.time} Uhr</div>
+            <div style={{display:"flex",alignItems:"center",gap:6,fontSize:13,color:"#555",fontWeight:600}}>
+              🚗 {r.driverName}
+              {r.deviceId===DID&&<span style={{fontSize:10,background:"#e8f3ee",color:GREEN,padding:"1px 7px",borderRadius:10,fontWeight:700}}>meine</span>}
             </div>
+            <div style={{fontSize:12,color:"#aaa",marginTop:4}}>💺 {r.confirmed.length}/{r.seats} bestätigt{r.note?` · 💬 ${r.note.slice(0,20)}…`:""}</div>
           </button>
         ))}
       </div>
-      <div style={{padding:"12px 20px 28px"}}>
-        <Btn label="+ Neue Fahrt eintragen" onClick={()=>setView("form")} full/>
-      </div>
+      <div style={{padding:"12px 16px 28px"}}><Btn label="+ Neue Fahrt eintragen" onClick={()=>setView("form")} full/></div>
     </div>
   );
 }
@@ -320,38 +326,9 @@ function PassengerEntry({person,onRemove,onRename}){
   const[editing,setEditing]=useState(false);
   const[newName,setNewName]=useState(person.name);
   const[confirm,setConfirm]=useState(false);
-
-  if(confirm) return(
-    <div style={{background:"#fff",borderRadius:14,padding:"12px 14px",marginBottom:8,boxShadow:"0 2px 8px rgba(0,0,0,0.05)"}}>
-      <p style={{fontSize:13,marginBottom:10}}>„{person.name}" entfernen?</p>
-      <div style={{display:"flex",gap:8}}>
-        <Btn label="Abbrechen" onClick={()=>setConfirm(false)} outline full small/>
-        <Btn label="Entfernen" onClick={()=>{setConfirm(false);onRemove();}} color={RED} full small/>
-      </div>
-    </div>
-  );
-
-  if(editing) return(
-    <div style={{background:"#fff",borderRadius:14,padding:"12px 14px",marginBottom:8,boxShadow:"0 2px 8px rgba(0,0,0,0.05)"}}>
-      <input value={newName} onChange={e=>setNewName(e.target.value)} style={{...iSt,marginBottom:10,fontSize:14}}/>
-      <div style={{display:"flex",gap:8}}>
-        <Btn label="Abbrechen" onClick={()=>setEditing(false)} outline full small/>
-        <Btn label="✓ Speichern" onClick={()=>{setEditing(false);onRename(newName);}} full small/>
-      </div>
-    </div>
-  );
-
-  return(
-    <div style={{background:"#fff",borderRadius:14,padding:"12px 14px",marginBottom:8,display:"flex",alignItems:"center",gap:10,boxShadow:"0 2px 8px rgba(0,0,0,0.05)"}}>
-      <div style={{width:34,height:34,borderRadius:"50%",background:GREEN,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:700,fontSize:14}}>{person.name[0].toUpperCase()}</div>
-      <div style={{flex:1}}>
-        <div style={{fontWeight:700,fontSize:14}}>{person.name}</div>
-        <div style={{fontSize:11,color:"#aaa"}}>{person.time}</div>
-      </div>
-      <button onClick={()=>setEditing(true)} style={{background:"none",border:"none",cursor:"pointer",fontSize:16,padding:"4px 6px"}}>✏️</button>
-      <button onClick={()=>setConfirm(true)} style={{background:"none",border:"none",cursor:"pointer",fontSize:16,padding:"4px 6px"}}>🗑</button>
-    </div>
-  );
+  if(confirm) return <div style={{background:"#fff",borderRadius:14,padding:"12px 14px",marginBottom:8,boxShadow:"0 2px 8px rgba(0,0,0,0.05)"}}><p style={{fontSize:13,marginBottom:10}}>„{person.name}" entfernen?</p><div style={{display:"flex",gap:8}}><Btn label="Abbrechen" onClick={()=>setConfirm(false)} outline full small/><Btn label="Entfernen" onClick={()=>{setConfirm(false);onRemove();}} color={RED} full small/></div></div>;
+  if(editing) return <div style={{background:"#fff",borderRadius:14,padding:"12px 14px",marginBottom:8,boxShadow:"0 2px 8px rgba(0,0,0,0.05)"}}><input value={newName} onChange={e=>setNewName(e.target.value)} style={{...iSt,marginBottom:10,fontSize:14}}/><div style={{display:"flex",gap:8}}><Btn label="Abbrechen" onClick={()=>setEditing(false)} outline full small/><Btn label="✓ Speichern" onClick={()=>{setEditing(false);onRename(newName);}} full small/></div></div>;
+  return <div style={{background:"#fff",borderRadius:14,padding:"12px 14px",marginBottom:8,display:"flex",alignItems:"center",gap:10,boxShadow:"0 2px 8px rgba(0,0,0,0.05)"}}><div style={{width:34,height:34,borderRadius:"50%",background:GREEN,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:700,fontSize:14}}>{person.name[0].toUpperCase()}</div><div style={{flex:1}}><div style={{fontWeight:700,fontSize:14}}>{person.name}</div><div style={{fontSize:11,color:"#aaa"}}>{person.time}</div></div><button onClick={()=>setEditing(true)} style={{background:"none",border:"none",cursor:"pointer",fontSize:16,padding:"4px 6px"}}>✏️</button><button onClick={()=>setConfirm(true)} style={{background:"none",border:"none",cursor:"pointer",fontSize:16,padding:"4px 6px"}}>🗑</button></div>;
 }
 
 // ── PASSENGER SCREEN ──────────────────────────────────────────
@@ -360,53 +337,37 @@ function PassengerScreen({rides}){
   const[name,setName]=useState("");
   const[done,setDone]=useState(false);
   const[saving,setSaving]=useState(false);
+  const[routeFilter,setRouteFilter]=useState("all");
   const live=sel?rides.find(r=>r._id===sel._id)||sel:null;
 
-  // Success
   if(done&&live) return(
     <div style={{height:"100%",background:CREAM,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:32,gap:14,textAlign:"center"}}>
       <div style={{fontSize:64}}>🎉</div>
       <h2 style={{fontFamily:PD,fontSize:28}}>Du bist dabei!</h2>
       <p style={{color:"#666",fontSize:14}}>{fmt(live.date)} · {live.time} Uhr</p>
       <div style={{background:"#fff",borderRadius:18,padding:"18px 28px",boxShadow:"0 4px 20px rgba(0,0,0,0.08)",marginTop:4}}>
-        <p style={{fontSize:11,color:"#aaa",marginBottom:4}}>🚗 Fahrer</p>
+        <p style={{fontSize:11,color:"#aaa",marginBottom:6}}>🚗 Fahrer</p>
         <p style={{fontFamily:PD,fontSize:19,fontWeight:700}}>{live.driverName}</p>
-        <p style={{fontSize:13,color:"#aaa",marginTop:6}}>{ROUTE.from} → {ROUTE.to}</p>
+        <div style={{marginTop:8}}><RouteBadge routeId={live.routeId} size="lg"/></div>
       </div>
-      <button onClick={()=>{setDone(false);setSel(null);setName("");}} style={{marginTop:10,background:"none",border:"none",color:"#aaa",fontSize:13,cursor:"pointer"}}>
-        Andere Fahrt wählen
-      </button>
+      <button onClick={()=>{setDone(false);setSel(null);setName("");}} style={{marginTop:10,background:"none",border:"none",color:"#aaa",fontSize:13,cursor:"pointer"}}>Andere Fahrt wählen</button>
     </div>
   );
 
-  // Detail
   if(live){
     const full=live.seatsLeft<=0;
-    const alreadyIn=live.confirmed?.findIndex(p=>p.name.toLowerCase()===name.trim().toLowerCase())!==-1&&name.trim()!=="";
-
+    const alreadyIn=name.trim()&&live.confirmed?.some(p=>p.name.toLowerCase()===name.trim().toLowerCase());
     async function confirm(){
       if(!name.trim()||alreadyIn||saving)return;
       setSaving(true);
-      const newC=[...(live.confirmed||[]),{name:name.trim(),time:nowTime()}];
-      await dbUpdate(live._id,{confirmed:newC,seatsLeft:live.seatsLeft-1});
-      setSaving(false);
-      setDone(true);
+      await dbUpdate(live._id,{confirmed:[...(live.confirmed||[]),{name:name.trim(),time:nowTime()}],seatsLeft:live.seatsLeft-1});
+      setSaving(false);setDone(true);
     }
-
-    async function removeEntry(n){
-      const newC=live.confirmed.filter(p=>p.name!==n);
-      await dbUpdate(live._id,{confirmed:newC,seatsLeft:live.seatsLeft+1});
-    }
-
-    async function renameEntry(old,nw){
-      if(!nw.trim())return;
-      const newC=live.confirmed.map(p=>p.name===old?{...p,name:nw.trim()}:p);
-      await dbUpdate(live._id,{confirmed:newC});
-    }
-
+    async function removeEntry(n){await dbUpdate(live._id,{confirmed:live.confirmed.filter(p=>p.name!==n),seatsLeft:live.seatsLeft+1});}
+    async function renameEntry(old,nw){if(!nw.trim())return;await dbUpdate(live._id,{confirmed:live.confirmed.map(p=>p.name===old?{...p,name:nw.trim()}:p)});}
     return(
       <div style={{height:"100%",background:CREAM,display:"flex",flexDirection:"column"}}>
-        <DarkHeader eyebrow="MITFAHRER" title={`${ROUTE.from} → ${ROUTE.to}`}>
+        <DarkHeader eyebrow="MITFAHRER" title={`${live.from} → ${live.to}`}>
           <p style={{color:"#aaa",fontSize:13,marginTop:4}}>🚗 {live.driverName}</p>
           <div style={{display:"flex",gap:8,marginTop:12,flexWrap:"wrap"}}>
             {[["📅",fmt(live.date)],["🕐",live.time+" Uhr"],["💺",`${live.seatsLeft} Platz${live.seatsLeft!==1?"e":""} frei`]].map(([ic,v])=>(
@@ -414,65 +375,51 @@ function PassengerScreen({rides}){
             ))}
           </div>
         </DarkHeader>
-
         <div style={{flex:1,overflowY:"auto",padding:"18px 20px"}}>
           {(live.confirmed||[]).length>0&&(
             <div style={{marginBottom:16}}>
-              <p style={{fontSize:11,fontWeight:700,color:GREEN,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:8}}>
-                Bereits dabei ({live.confirmed.length})
-              </p>
-              {live.confirmed.map((p,i)=>(
-                <PassengerEntry key={i} person={p} onRemove={()=>removeEntry(p.name)} onRename={nw=>renameEntry(p.name,nw)}/>
-              ))}
+              <p style={{fontSize:11,fontWeight:700,color:GREEN,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:8}}>Bereits dabei ({live.confirmed.length})</p>
+              {live.confirmed.map((p,i)=><PassengerEntry key={i} person={p} onRemove={()=>removeEntry(p.name)} onRename={nw=>renameEntry(p.name,nw)}/>)}
             </div>
           )}
-
           {live.note&&<div style={{background:"#fff",borderRadius:14,padding:"12px 14px",fontSize:13,color:"#666",marginBottom:16,borderLeft:`3px solid ${GREEN}`}}>💬 {live.note}</div>}
-
-          {full?(
-            <div style={{textAlign:"center",padding:"16px 0"}}>
-              <div style={{fontSize:40}}>🚫</div>
-              <p style={{fontFamily:PD,fontStyle:"italic",fontSize:17,marginTop:8,color:RED}}>Fahrt ist voll</p>
-            </div>
-          ):(
+          {full?<div style={{textAlign:"center",padding:"16px 0"}}><div style={{fontSize:40}}>🚫</div><p style={{fontFamily:PD,fontStyle:"italic",fontSize:17,marginTop:8,color:RED}}>Fahrt ist voll</p></div>:(
             <>
               <Field label="Dein Name" value={name} onChange={setName} placeholder="Vorname"/>
               {alreadyIn&&<p style={{color:RED,fontSize:12,marginTop:-8,marginBottom:12}}>Name bereits eingetragen.</p>}
-              <Btn label={saving?"Speichert…":"✓  Mitfahrt bestätigen"} onClick={confirm} disabled={!name.trim()||alreadyIn||saving} full/>
+              <Btn label={saving?"Speichert…":"✓  Mitfahrt bestätigen"} onClick={confirm} disabled={!name.trim()||!!alreadyIn||saving} full/>
             </>
           )}
         </div>
-        <div style={{padding:"10px 20px 28px"}}>
-          <Btn label="← Andere Fahrt wählen" onClick={()=>{setSel(null);setName("");}} outline full/>
-        </div>
+        <div style={{padding:"10px 16px 28px"}}><Btn label="← Andere Fahrt wählen" onClick={()=>{setSel(null);setName("");}} outline full/></div>
       </div>
     );
   }
 
-  // List
+  const filtered=routeFilter==="all"?rides:rides.filter(r=>r.routeId===routeFilter);
   return(
     <div style={{height:"100%",background:CREAM,display:"flex",flexDirection:"column"}}>
-      <DarkHeader eyebrow="MITFAHRER" title="Fahrt wählen" sub={`${ROUTE.from} → ${ROUTE.to}`}/>
-      <div style={{flex:1,overflowY:"auto",padding:"16px 20px 20px"}}>
-        {rides.length===0?(
-          <div style={{textAlign:"center",padding:"48px 0"}}>
-            <div style={{fontSize:52}}>⏳</div>
-            <p style={{fontFamily:PD,fontStyle:"italic",fontSize:17,marginTop:12,color:"#aaa"}}>Noch keine Fahrten verfügbar</p>
-          </div>
-        ):rides.map(r=>{
+      <DarkHeader eyebrow="MITFAHRER" title="Fahrt wählen">
+        <div style={{display:"flex",gap:6,marginTop:12}}>
+          {[["all","Alle"],["hin","Kreuzung → Dorf"],["rueck","Dorf → Kreuzung"]].map(([id,label])=>(
+            <button key={id} onClick={()=>setRouteFilter(id)} style={{padding:"5px 12px",borderRadius:20,border:`1.5px solid ${routeFilter===id?"#fff":"rgba(255,255,255,0.2)"}`,background:routeFilter===id?"rgba(255,255,255,0.15)":"transparent",color:routeFilter===id?"#fff":"#aaa",fontSize:11,fontWeight:600,cursor:"pointer"}}>{label}</button>
+          ))}
+        </div>
+      </DarkHeader>
+      <div style={{flex:1,overflowY:"auto",padding:"12px 16px 20px"}}>
+        {filtered.length===0?(
+          <div style={{textAlign:"center",padding:"48px 0"}}><div style={{fontSize:52}}>⏳</div><p style={{fontFamily:PD,fontStyle:"italic",fontSize:17,marginTop:12,color:"#aaa"}}>Keine Fahrten verfügbar</p></div>
+        ):filtered.map(r=>{
           const full=r.seatsLeft<=0;
-          return(
-            <button key={r._id} onClick={()=>setSel(r)} style={{width:"100%",background:"#fff",border:"1.5px solid transparent",borderRadius:18,padding:"14px 16px",marginBottom:10,textAlign:"left",cursor:"pointer",fontFamily:SAN,opacity:full?0.5:1,boxShadow:"0 2px 10px rgba(0,0,0,0.06)",transition:"border-color 0.15s"}}
-              onMouseEnter={e=>{if(!full)e.currentTarget.style.borderColor=GREEN;}}
-              onMouseLeave={e=>e.currentTarget.style.borderColor="transparent"}>
-              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
-                <span style={{fontFamily:PD,fontSize:17,fontWeight:700}}>{fmt(r.date)} · {r.time} Uhr</span>
-                <span style={{background:full?"#fde8e0":"#e8f3ee",color:full?RED:GREEN,fontSize:11,fontWeight:700,padding:"3px 9px",borderRadius:20}}>{full?"voll":`${r.seatsLeft} frei`}</span>
-              </div>
-              <div style={{fontSize:13,color:"#555",fontWeight:600}}>🚗 {r.driverName}</div>
-              {r.note&&<div style={{fontSize:12,color:"#aaa",marginTop:4}}>💬 {r.note.slice(0,40)}{r.note.length>40?"…":""}</div>}
-            </button>
-          );
+          return <button key={r._id} onClick={()=>setSel(r)} style={{width:"100%",background:"#fff",border:"1.5px solid transparent",borderRadius:18,padding:"14px 16px",marginBottom:10,textAlign:"left",cursor:"pointer",fontFamily:SAN,opacity:full?0.5:1,boxShadow:"0 2px 10px rgba(0,0,0,0.06)",transition:"border-color 0.15s"}} onMouseEnter={e=>{if(!full)e.currentTarget.style.borderColor=GREEN;}} onMouseLeave={e=>e.currentTarget.style.borderColor="transparent"}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
+              <RouteBadge routeId={r.routeId}/>
+              <span style={{background:full?"#fde8e0":"#e8f3ee",color:full?RED:GREEN,fontSize:11,fontWeight:700,padding:"3px 9px",borderRadius:20}}>{full?"voll":`${r.seatsLeft} frei`}</span>
+            </div>
+            <div style={{fontFamily:PD,fontSize:16,fontWeight:700,margin:"4px 0"}}>{fmt(r.date)} · {r.time} Uhr</div>
+            <div style={{fontSize:13,color:"#555",fontWeight:600}}>🚗 {r.driverName}</div>
+            {r.note&&<div style={{fontSize:12,color:"#aaa",marginTop:4}}>💬 {r.note.slice(0,40)}{r.note.length>40?"…":""}</div>}
+          </button>;
         })}
       </div>
     </div>
@@ -481,16 +428,12 @@ function PassengerScreen({rides}){
 
 // ── TAB BAR ───────────────────────────────────────────────────
 function TabBar({tab,setTab}){
-  return(
-    <div style={{background:"rgba(255,255,255,0.97)",backdropFilter:"blur(12px)",borderTop:"1px solid rgba(0,0,0,0.08)",display:"flex",padding:"8px 0 max(env(safe-area-inset-bottom,0px) + 8px, 22px)",flexShrink:0}}>
-      {[{id:"driver",emoji:"🚗",label:"Fahrer"},{id:"passenger",emoji:"🙋",label:"Mitfahrer"}].map(t=>(
-        <button key={t.id} onClick={()=>setTab(t.id)} style={{flex:1,background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3,padding:"4px 0",opacity:tab===t.id?1:0.35,transition:"opacity 0.15s"}}>
-          <span style={{fontSize:26}}>{t.emoji}</span>
-          <span style={{fontSize:10,fontWeight:tab===t.id?700:500,color:tab===t.id?GREEN:"#888"}}>{t.label}</span>
-        </button>
-      ))}
-    </div>
-  );
+  return <div style={{background:"rgba(255,255,255,0.97)",backdropFilter:"blur(12px)",borderTop:"1px solid rgba(0,0,0,0.08)",display:"flex",padding:"8px 0 max(env(safe-area-inset-bottom,0px) + 8px, 22px)",flexShrink:0}}>{[{id:"driver",emoji:"🚗",label:"Fahrer"},{id:"passenger",emoji:"🙋",label:"Mitfahrer"}].map(t=><button key={t.id} onClick={()=>setTab(t.id)} style={{flex:1,background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3,padding:"4px 0",opacity:tab===t.id?1:0.35,transition:"opacity 0.15s"}}><span style={{fontSize:26}}>{t.emoji}</span><span style={{fontSize:10,fontWeight:tab===t.id?700:500,color:tab===t.id?GREEN:"#888"}}>{t.label}</span></button>)}</div>;
+}
+
+// ── IN-APP TOAST ──────────────────────────────────────────────
+function Toast({msg,visible}){
+  return <div style={{position:"fixed",bottom:90,left:"50%",transform:`translateX(-50%) translateY(${visible?0:18}px)`,opacity:visible?1:0,transition:"all 0.35s cubic-bezier(0.34,1.56,0.64,1)",background:DARK,color:CREAM,padding:"12px 22px",borderRadius:20,fontSize:13,fontWeight:500,maxWidth:"85%",textAlign:"center",zIndex:999,pointerEvents:"none",boxShadow:"0 8px 24px rgba(0,0,0,0.3)"}}>{msg}</div>;
 }
 
 // ── ROOT ──────────────────────────────────────────────────────
@@ -499,6 +442,17 @@ function App(){
   const[role,setRole]=useState(null);
   const[tab,setTab]=useState("driver");
   const[rides,setRides]=useState([]);
+  const[presetRoute,setPresetRoute]=useState(null);
+  const[toast,setToast]=useState({msg:"",visible:false});
+  const[notifPerm,setNotifPerm]=useState("Notification" in window?Notification.permission:"unsupported");
+
+  function showToast(msg){setToast({msg,visible:true});setTimeout(()=>setToast(t=>({...t,visible:false})),3500);}
+
+  async function handleRequestNotif(){
+    const p=await requestNotifPerm();
+    setNotifPerm(p);
+    if(p==="granted")showToast("🔔 Benachrichtigungen aktiviert!");
+  }
 
   useEffect(()=>{
     if(window._dbReady){setReady(true);return;}
@@ -509,32 +463,39 @@ function App(){
 
   useEffect(()=>{
     if(!ready)return;
-    return dbListen(setRides);
+    return dbListen(setRides,msg=>showToast(msg));
   },[ready]);
 
   const shellSt={width:390,height:"100vh",maxHeight:844,borderRadius:44,overflow:"hidden",position:"relative",display:"flex",flexDirection:"column",boxShadow:"0 40px 120px rgba(0,0,0,0.55), 0 0 0 10px #1A1A1A, 0 0 0 12px #333"};
 
-  if(!ready) return(
-    <div className="shell" style={{...shellSt,background:DARK,justifyContent:"center",alignItems:"center"}}>
-      <div style={{fontSize:48}}>🚗</div>
-      <p style={{color:GREEN,fontSize:13,fontWeight:600,marginTop:16,letterSpacing:"0.1em"}}>VERBINDE…</p>
-    </div>
-  );
+  if(!ready) return <div className="shell" style={{...shellSt,background:DARK,justifyContent:"center",alignItems:"center"}}><div style={{fontSize:48}}>🚗</div><p style={{color:GREEN,fontSize:13,fontWeight:600,marginTop:16,letterSpacing:"0.1em"}}>VERBINDE…</p></div>;
 
   if(!role) return(
     <div className="shell" style={{...shellSt}}>
       <div style={{height:"100%",background:DARK,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:32,gap:20}}>
         <p style={{color:GREEN,fontSize:12,fontWeight:700,letterSpacing:"0.12em"}}>MITFAHR APP</p>
-        <h1 style={{fontFamily:PD,color:CREAM,fontSize:32,textAlign:"center",lineHeight:1.2}}>{ROUTE.from}<br/><em style={{color:GREEN}}>→ {ROUTE.to}</em></h1>
+        <h1 style={{fontFamily:PD,color:CREAM,fontSize:30,textAlign:"center",lineHeight:1.3}}>Wangener Kreuzung<br/><em style={{color:GREEN,fontSize:24}}>↔ Dorf</em></h1>
         <p style={{color:"#777",fontSize:13,textAlign:"center",marginBottom:4}}>Wer bist du heute?</p>
-        {[{role:"driver",emoji:"🚗",label:"Ich fahre",sub:"Fahrten eintragen & verwalten"},{role:"passenger",emoji:"🙋",label:"Ich möchte mit",sub:"Fahrt auswählen & bestätigen"}].map(r=>(
-          <button key={r.role} onClick={()=>{setRole(r.role);setTab(r.role);}} style={{width:"100%",background:"#222",border:"1.5px solid #333",borderRadius:18,padding:"18px 20px",cursor:"pointer",textAlign:"left",fontFamily:SAN,transition:"all 0.15s"}}
-            onMouseEnter={e=>{e.currentTarget.style.borderColor=GREEN;e.currentTarget.style.background="#1a2e24";}}
-            onMouseLeave={e=>{e.currentTarget.style.borderColor="#333";e.currentTarget.style.background="#222";}}>
-            <div style={{color:CREAM,fontSize:17,fontWeight:700}}>{r.emoji}  {r.label}</div>
-            <div style={{color:"#666",fontSize:12,marginTop:3}}>{r.sub}</div>
-          </button>
-        ))}
+        <div style={{width:"100%"}}>
+          <p style={{color:"#555",fontSize:11,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:8}}>🚗 Ich fahre</p>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+            {ROUTES.map(r=>(
+              <button key={r.id} onClick={()=>{setRole("driver");setTab("driver");setPresetRoute(r.id);}} style={{background:"#222",border:"1.5px solid #333",borderRadius:16,padding:"16px 10px",cursor:"pointer",textAlign:"center",fontFamily:SAN,transition:"all 0.15s"}}
+                onMouseEnter={e=>{e.currentTarget.style.borderColor=GREEN;e.currentTarget.style.background="#1a2e24";}}
+                onMouseLeave={e=>{e.currentTarget.style.borderColor="#333";e.currentTarget.style.background="#222";}}>
+                <div style={{color:CREAM,fontSize:12,fontWeight:700,lineHeight:1.4}}>{r.from}</div>
+                <div style={{color:GREEN,fontSize:18,margin:"3px 0"}}>↓</div>
+                <div style={{color:CREAM,fontSize:12,fontWeight:700,lineHeight:1.4}}>{r.to}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+        <button onClick={()=>{setRole("passenger");setTab("passenger");}} style={{width:"100%",background:"#222",border:"1.5px solid #333",borderRadius:18,padding:"18px 20px",cursor:"pointer",textAlign:"left",fontFamily:SAN,transition:"all 0.15s"}}
+          onMouseEnter={e=>{e.currentTarget.style.borderColor="#4A7FA5";e.currentTarget.style.background="#1a242e";}}
+          onMouseLeave={e=>{e.currentTarget.style.borderColor="#333";e.currentTarget.style.background="#222";}}>
+          <div style={{color:CREAM,fontSize:17,fontWeight:700}}>🙋  Ich möchte mitfahren</div>
+          <div style={{color:"#666",fontSize:12,marginTop:3}}>Fahrt auswählen & bestätigen</div>
+        </button>
       </div>
     </div>
   );
@@ -542,10 +503,11 @@ function App(){
   return(
     <div className="shell" style={{...shellSt,background:CREAM}}>
       <div style={{flex:1,overflow:"hidden"}}>
-        {tab==="driver"&&<DriverScreen rides={rides}/>}
+        {tab==="driver"&&<DriverScreen rides={rides} notifPerm={notifPerm} onRequestNotif={handleRequestNotif} presetRoute={presetRoute} clearPreset={()=>setPresetRoute(null)}/>}
         {tab==="passenger"&&<PassengerScreen rides={rides}/>}
       </div>
       <TabBar tab={tab} setTab={setTab}/>
+      <Toast msg={toast.msg} visible={toast.visible}/>
       <button onClick={()=>setRole(null)} style={{position:"absolute",top:14,right:16,background:"rgba(255,255,255,0.08)",border:"none",color:"#888",fontSize:11,borderRadius:10,padding:"4px 10px",cursor:"pointer",zIndex:50}}>⇄ Rolle</button>
     </div>
   );
