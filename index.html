@@ -525,7 +525,7 @@ function App(){
       </div>
       <TabBar tab={tab} setTab={setTab}/>
       <Toast msg={toast.msg} visible={toast.visible}/>
-      <button onClick={()=>setRole(null)} style={{position:"absolute",top:14,right:16,background:"rgba(255,255,255,0.08)",border:"none",color:"#fff",fontSize:12,fontWeight:600,borderRadius:10,padding:"5px 12px",cursor:"pointer",zIndex:50,fontFamily:SAN}}>← Zurück</button>
+      <button onClick={()=>setRole(null)} style={{position:"absolute",top:"max(env(safe-area-inset-top, 0px) + 14px, 52px)",right:16,background:"rgba(255,255,255,0.15)",border:"1px solid rgba(255,255,255,0.2)",color:"#fff",fontSize:13,fontWeight:600,borderRadius:10,padding:"6px 14px",cursor:"pointer",zIndex:50,fontFamily:SAN}}>← Zurück</button>
     </div>
   );
 }
