@@ -475,8 +475,8 @@ function App(){
   if(!selectedRoute) return(
     <div className="shell" style={{...shellSt}}>
       <div style={{height:"100%",background:DARK,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:32,gap:28}}>
-        <h1 style={{fontFamily:PD,color:"#fff",fontSize:52,fontWeight:700,textAlign:"center",lineHeight:1.1}}>MitfahrApp</h1>
-        <p style={{color:"#555",fontSize:13,textAlign:"center",marginTop:-14}}>Wähle deine Strecke</p>
+        <h1 style={{fontFamily:PD,color:"#fff",fontSize:38,fontWeight:700,textAlign:"center",lineHeight:1.1}}>MitfahrApp</h1>
+        <p style={{color:"#fff",fontSize:13,textAlign:"center",marginTop:-10}}>Wähle deine Strecke</p>
         <div style={{width:"100%",display:"flex",flexDirection:"column",gap:12}}>
           {ROUTES.map(r=>(
             <button key={r.id} onClick={()=>setSelectedRoute(r.id)} style={{width:"100%",background:"#1a1a1a",border:"1.5px solid #2a2a2a",borderRadius:20,padding:"22px 24px",cursor:"pointer",textAlign:"left",fontFamily:SAN,transition:"all 0.15s",display:"flex",alignItems:"center",justifyContent:"space-between"}}
@@ -484,7 +484,7 @@ function App(){
               onMouseLeave={e=>{e.currentTarget.style.borderColor="#2a2a2a";e.currentTarget.style.background="#1a1a1a";}}>
               <div>
                 <div style={{color:"#fff",fontSize:16,fontWeight:700}}>{r.from}</div>
-                <div style={{color:GREEN,fontSize:13,marginTop:3}}>→ {r.to}</div>
+                <div style={{color:"#fff",fontSize:16,fontWeight:700,marginTop:4}}>→ {r.to}</div>
               </div>
               <div style={{color:"#444",fontSize:24}}>›</div>
             </button>
@@ -499,18 +499,18 @@ function App(){
   if(!role) return(
     <div className="shell" style={{...shellSt}}>
       <div style={{height:"100%",background:DARK,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:32,gap:20}}>
-        <button onClick={()=>setSelectedRoute(null)} style={{alignSelf:"flex-start",background:"none",border:"none",color:"#555",fontSize:13,cursor:"pointer",fontFamily:SAN,marginBottom:8}}>‹ Zurück</button>
+        <button onClick={()=>setSelectedRoute(null)} style={{alignSelf:"flex-start",background:"none",border:"none",color:"#fff",fontSize:13,cursor:"pointer",fontFamily:SAN,marginBottom:8}}>‹ Zurück</button>
         <div style={{width:"100%",background:"#1a1a1a",borderRadius:16,padding:"16px 20px",border:"1px solid #2a2a2a",marginBottom:4}}>
-          <p style={{color:"#555",fontSize:11,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:4}}>Gewählte Strecke</p>
+          <p style={{color:"#fff",fontSize:11,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:4}}>Gewählte Strecke</p>
           <p style={{color:"#fff",fontSize:16,fontWeight:700}}>{chosenRoute?.from} <span style={{color:GREEN}}>→</span> {chosenRoute?.to}</p>
         </div>
-        <p style={{color:"#555",fontSize:13,textAlign:"center"}}>Wer bist du?</p>
+        <p style={{color:"#fff",fontSize:13,textAlign:"center"}}>Wer bist du?</p>
         {[{role:"driver",emoji:"🚗",label:"Ich fahre",sub:"Fahrt eintragen & verwalten"},{role:"passenger",emoji:"🙋",label:"Ich möchte mit",sub:"Fahrt auswählen & bestätigen"}].map(r=>(
           <button key={r.role} onClick={()=>{setRole(r.role);setTab(r.role);if(r.role==="driver")setPresetRoute(selectedRoute);}} style={{width:"100%",background:"#1a1a1a",border:"1.5px solid #2a2a2a",borderRadius:18,padding:"18px 20px",cursor:"pointer",textAlign:"left",fontFamily:SAN,transition:"all 0.15s"}}
             onMouseEnter={e=>{e.currentTarget.style.borderColor=r.role==="driver"?GREEN:"#4A7FA5";e.currentTarget.style.background=r.role==="driver"?"#0f1f18":"#0f1824";}}
             onMouseLeave={e=>{e.currentTarget.style.borderColor="#2a2a2a";e.currentTarget.style.background="#1a1a1a";}}>
             <div style={{color:"#fff",fontSize:17,fontWeight:700}}>{r.emoji}  {r.label}</div>
-            <div style={{color:"#555",fontSize:12,marginTop:3}}>{r.sub}</div>
+            <div style={{color:"#fff",fontSize:12,marginTop:3}}>{r.sub}</div>
           </button>
         ))}
       </div>
@@ -525,7 +525,7 @@ function App(){
       </div>
       <TabBar tab={tab} setTab={setTab}/>
       <Toast msg={toast.msg} visible={toast.visible}/>
-      <button onClick={()=>{setRole(null);setSelectedRoute(null);}} style={{position:"absolute",top:14,right:16,background:"rgba(255,255,255,0.08)",border:"none",color:"#888",fontSize:11,borderRadius:10,padding:"4px 10px",cursor:"pointer",zIndex:50}}>⇄ Rolle</button>
+      <button onClick={()=>setRole(null)} style={{position:"absolute",top:14,right:16,background:"rgba(255,255,255,0.08)",border:"none",color:"#fff",fontSize:12,fontWeight:600,borderRadius:10,padding:"5px 12px",cursor:"pointer",zIndex:50,fontFamily:SAN}}>← Zurück</button>
     </div>
   );
 }
