@@ -119,6 +119,7 @@ function dbListen(cb,onConfirmChange){
 // ── Requests Firebase ────────────────────────────────────────
 async function dbAddRequest(r){const{collection,addDoc,serverTimestamp}=window._fs;await addDoc(collection(window._db,"requests"),{...r,deviceId:DID,createdAt:serverTimestamp()});}
 async function dbDeleteRequest(id){const{doc,deleteDoc}=window._fs;await deleteDoc(doc(window._db,"requests",id));}
+async function dbUpdateRequest(id,d){const{doc,updateDoc}=window._fs;await updateDoc(doc(window._db,"requests",id),d);}
 function dbListenRequests(cb){
   const{collection,onSnapshot}=window._fs;
   return onSnapshot(collection(window._db,"requests"),snap=>{
@@ -560,16 +561,82 @@ function RequestsScreen({requests,rides}){
 
 function RequestCard({req,isOwn}){
   const[confirmDel,setConfirmDel]=useState(false);
+  const[showReply,setShowReply]=useState(false);
+  const[replyName,setReplyName]=useState("");
+  const[replySaving,setReplySaving]=useState(false);
   const route=ROUTES.find(r=>r.id===req.routeId)||{from:req.from,to:req.to};
+  const replies=req.replies||[];
+  const myReply=replies.find(r=>r.deviceId===DID);
+
+  async function sendReply(){
+    if(!replyName.trim()||replySaving)return;
+    setReplySaving(true);
+    const newReplies=[...replies,{name:replyName.trim(),deviceId:DID,time:nowTime()}];
+    await dbUpdateRequest(req._id,{replies:newReplies});
+    setReplySaving(false);
+    setShowReply(false);
+    setReplyName("");
+  }
+
+  async function removeReply(){
+    const newReplies=replies.filter(r=>r.deviceId!==DID);
+    await dbUpdateRequest(req._id,{replies:newReplies});
+  }
+
   return(
-    <div style={{background:"#fff",borderRadius:16,padding:"14px 16px",marginBottom:10,boxShadow:"0 2px 10px rgba(0,0,0,0.06)",border:`1.5px solid ${isOwn?"#E0DBD0":"transparent"}`}}>
+    <div style={{background:"#fff",borderRadius:16,padding:"14px 16px",marginBottom:10,boxShadow:"0 2px 10px rgba(0,0,0,0.06)",border:`1.5px solid ${replies.length>0?"#e8f3ee":isOwn?"#E0DBD0":"transparent"}`}}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
         <span style={{display:"inline-flex",alignItems:"center",gap:4,background:"#fdf6e3",color:AMBER,fontSize:11,fontWeight:700,padding:"3px 10px",borderRadius:20}}>{route.from} → {route.to}</span>
-        {isOwn&&<span style={{fontSize:10,background:"#e8f3ee",color:GREEN,padding:"2px 8px",borderRadius:10,fontWeight:700}}>meine</span>}
+        <div style={{display:"flex",gap:6,alignItems:"center"}}>
+          {replies.length>0&&<span style={{fontSize:10,background:"#e8f3ee",color:GREEN,padding:"2px 8px",borderRadius:10,fontWeight:700}}>✓ {replies.length} Zusage{replies.length>1?"n":""}</span>}
+          {isOwn&&<span style={{fontSize:10,background:"#f0f0f0",color:"#888",padding:"2px 8px",borderRadius:10,fontWeight:700}}>meine</span>}
+        </div>
       </div>
       <div style={{fontFamily:PD,fontSize:16,fontWeight:700,margin:"4px 0"}}>{fmt(req.date)} · {req.time} Uhr</div>
       <div style={{fontSize:13,color:"#555",fontWeight:600}}>✋ {req.name}</div>
       {req.note&&<div style={{fontSize:12,color:"#aaa",marginTop:4}}>💬 {req.note}</div>}
+
+      {/* Replies list */}
+      {replies.length>0&&(
+        <div style={{marginTop:10,borderTop:"1px solid #f0f0f0",paddingTop:10}}>
+          <p style={{fontSize:10,fontWeight:700,color:GREEN,letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:6}}>Zusagen</p>
+          {replies.map((r,i)=>(
+            <div key={i} style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+              <div style={{width:28,height:28,borderRadius:"50%",background:GREEN,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:700,fontSize:12}}>{r.name[0].toUpperCase()}</div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:13,fontWeight:700}}>🚗 {r.name} fährt!</div>
+                <div style={{fontSize:11,color:"#aaa"}}>{r.time}</div>
+              </div>
+              {r.deviceId===DID&&(
+                <button onClick={removeReply} style={{background:"none",border:"none",color:"#ccc",fontSize:12,cursor:"pointer",fontFamily:SAN}}>✕</button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Actions */}
+      {!isOwn&&!myReply&&!showReply&&(
+        <button onClick={()=>setShowReply(true)} style={{marginTop:10,width:"100%",background:"#e8f3ee",border:"none",borderRadius:10,padding:"9px",color:GREEN,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:SAN}}>
+          🚗 Ich kann fahren!
+        </button>
+      )}
+      {!isOwn&&showReply&&(
+        <div style={{marginTop:10}}>
+          <input value={replyName} onChange={e=>setReplyName(e.target.value)} placeholder="Dein Name als Fahrer"
+            style={{width:"100%",border:"1.5px solid #E0DBD0",borderRadius:10,padding:"9px 12px",fontFamily:SAN,fontSize:14,color:"#1A1A1A",background:"#fff",outline:"none",marginBottom:8}}/>
+          <div style={{display:"flex",gap:8}}>
+            <Btn label="Abbrechen" onClick={()=>{setShowReply(false);setReplyName("");}} outline full small/>
+            <Btn label={replySaving?"…":"✓ Zusagen"} onClick={sendReply} color={GREEN} disabled={!replyName.trim()||replySaving} full small/>
+          </div>
+        </div>
+      )}
+      {!isOwn&&myReply&&(
+        <div style={{marginTop:10,background:"#e8f3ee",borderRadius:10,padding:"9px 12px",fontSize:13,color:GREEN,fontWeight:600,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <span>✓ Du hast zugesagt</span>
+          <button onClick={removeReply} style={{background:"none",border:"none",color:"#aaa",fontSize:12,cursor:"pointer",fontFamily:SAN}}>Zurückziehen</button>
+        </div>
+      )}
       {isOwn&&!confirmDel&&(
         <button onClick={()=>setConfirmDel(true)} style={{marginTop:10,background:"none",border:"none",color:"#bbb",fontSize:12,cursor:"pointer",fontFamily:SAN}}>Anfrage zurückziehen</button>
       )}
