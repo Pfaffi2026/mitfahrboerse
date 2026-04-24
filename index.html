@@ -122,10 +122,13 @@ async function dbDeleteRequest(id){const{doc,deleteDoc}=window._fs;await deleteD
 async function dbUpdateRequest(id,d){const{doc,updateDoc}=window._fs;await updateDoc(doc(window._db,"requests",id),d);}
 function dbListenRequests(cb){
   const{collection,onSnapshot}=window._fs;
-  return onSnapshot(collection(window._db,"requests"),snap=>{
+  return onSnapshot(collection(window._db,"requests"),async snap=>{
     const all=snap.docs.map(d=>({...d.data(),_id:d.id}));
-    all.sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
-    cb(all);
+    // Auto-delete expired requests (2h after requested time)
+    for(const r of all){if(isExpired(r))await dbDeleteRequest(r._id);}
+    const active=all.filter(r=>!isExpired(r));
+    active.sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+    cb(active);
   });
 }
 
@@ -638,12 +641,14 @@ function RequestCard({req,isOwn}){
         </div>
       )}
       {isOwn&&!confirmDel&&(
-        <button onClick={()=>setConfirmDel(true)} style={{marginTop:10,background:"none",border:"none",color:"#bbb",fontSize:12,cursor:"pointer",fontFamily:SAN}}>Anfrage zurückziehen</button>
+        <button onClick={()=>setConfirmDel(true)} style={{marginTop:10,width:"100%",background:"#fde8e0",border:"none",borderRadius:10,padding:"9px",color:RED,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:SAN}}>
+          🗑 Anfrage zurückziehen
+        </button>
       )}
       {isOwn&&confirmDel&&(
         <div style={{marginTop:10,display:"flex",gap:8}}>
           <Btn label="Abbrechen" onClick={()=>setConfirmDel(false)} outline full small/>
-          <Btn label="Zurückziehen" onClick={()=>dbDeleteRequest(req._id)} color={RED} full small/>
+          <Btn label="Ja, löschen" onClick={()=>dbDeleteRequest(req._id)} color={RED} full small/>
         </div>
       )}
     </div>
