@@ -33,10 +33,28 @@
 
 <script type="module">
   import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import{getFirestore,collection,onSnapshot,addDoc,updateDoc,deleteDoc,doc,serverTimestamp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-  const app=initializeApp({apiKey:"AIzaSyBKtpF0rVqrU8HkGsRw4YR6hoedIqddYgs",authDomain:"mitfahrboerse-35385.firebaseapp.com",projectId:"mitfahrboerse-35385",storageBucket:"mitfahrboerse-35385.firebasestorage.app",messagingSenderId:"78122839384",appId:"1:78122839384:web:6e1211eba196e24029c92d"});
+  import{getFirestore,collection,onSnapshot,addDoc,updateDoc,deleteDoc,doc,setDoc,serverTimestamp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import{getMessaging,getToken,isSupported}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js";
+  const VAPID_KEY="BJSH16t6TRu3525r4UOW7EFyF_nUTpO0hxVSSnF7RZA4ELwwqX46LtnAcTokwZmEsY4UmtWvinPvV9gKB9b5xh8";
+  const app=initializeApp({apiKey:"AIzaSyDQ1dvk4CNCd6oRecFKJ3U3deToiZLIcv8",authDomain:"mitfahrb.firebaseapp.com",projectId:"mitfahrb",storageBucket:"mitfahrb.firebasestorage.app",messagingSenderId:"955235206407",appId:"1:955235206407:web:b6c6705c7f75dde538f1a2"});
   const db=getFirestore(app);
-  window._db=db;window._fs={collection,onSnapshot,addDoc,updateDoc,deleteDoc,doc,serverTimestamp};
+  window._db=db;window._fs={collection,onSnapshot,addDoc,updateDoc,deleteDoc,doc,setDoc,serverTimestamp};
+  window._registerPush=async(did,silent)=>{
+    try{
+      if(!("Notification" in window)||!("serviceWorker" in navigator)||!(await isSupported()))return"unsupported";
+      if(VAPID_KEY.startsWith("HIER_"))return"novapid";
+      let perm=Notification.permission;
+      if(perm==="default"&&!silent)perm=await Notification.requestPermission();
+      if(perm!=="granted")return perm;
+      const reg=await navigator.serviceWorker.register("/mitfahrboerse/sw.js",{scope:"/mitfahrboerse/"});
+      await navigator.serviceWorker.ready;
+      const token=await getToken(getMessaging(app),{vapidKey:VAPID_KEY,serviceWorkerRegistration:reg});
+      if(!token)return"error";
+      await setDoc(doc(db,"tokens",did),{token,deviceId:did,updatedAt:serverTimestamp()});
+      localStorage.setItem("mf_push","1");
+      return"granted";
+    }catch(e){console.error("push",e);return"error";}
+  };
   window._dbReady=true;window.dispatchEvent(new Event("db-ready"));
 </script>
 
@@ -68,7 +86,8 @@ async function requestNotifPerm(){
   return await Notification.requestPermission();
 }
 function sendNotif(title,body){
-  if(Notification.permission==="granted"){
+  if(localStorage.getItem("mf_push")==="1")return; // FCM-Push übernimmt
+  if("Notification" in window&&Notification.permission==="granted"){
     new Notification(title,{body,icon:"/mitfahrboerse/icon-192.png"});
   }
 }
@@ -680,9 +699,13 @@ function App(){
   function showToast(msg){setToast({msg,visible:true});setTimeout(()=>setToast(t=>({...t,visible:false})),3500);}
 
   async function handleRequestNotif(){
-    const p=await requestNotifPerm();
-    setNotifPerm(p);
-    if(p==="granted")showToast("🔔 Benachrichtigungen aktiviert!");
+    const p=await window._registerPush(DID);
+    setNotifPerm("Notification" in window?Notification.permission:"unsupported");
+    if(p==="granted")showToast("🔔 Push-Benachrichtigungen aktiviert!");
+    else if(p==="novapid")showToast("⚠️ Push ist noch nicht eingerichtet");
+    else if(p==="unsupported")showToast("Push wird auf diesem Gerät nicht unterstützt");
+    else if(p==="denied")showToast("Benachrichtigungen sind im Browser blockiert");
+    else if(p==="error")showToast("Push konnte nicht aktiviert werden");
   }
 
   useEffect(()=>{
@@ -691,6 +714,10 @@ function App(){
     window.addEventListener("db-ready",h);
     return()=>window.removeEventListener("db-ready",h);
   },[]);
+
+  useEffect(()=>{
+    if(ready&&"Notification" in window&&Notification.permission==="granted")window._registerPush(DID,true);
+  },[ready]);
 
   useEffect(()=>{
     if(!ready)return;
@@ -756,6 +783,9 @@ function App(){
         {tab==="passenger"&&<PassengerScreen rides={rides}/>
         }{tab==="requests"&&<RequestsScreen requests={requests} rides={rides}/>}
       </div>
+      {notifPerm==="default"&&tab!=="driver"&&(
+        <button onClick={handleRequestNotif} style={{background:"#e8f3ee",border:"none",borderTop:"1px solid rgba(0,0,0,0.06)",padding:"9px 16px",color:GREEN,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:SAN,flexShrink:0}}>🔔 Push-Benachrichtigungen aktivieren</button>
+      )}
       <TabBar tab={tab} setTab={setTab} requestCount={requests.length}/>
       <Toast msg={toast.msg} visible={toast.visible}/>
       <button onClick={()=>setRole(null)} style={{position:"absolute",top:"max(env(safe-area-inset-top, 0px) + 14px, 52px)",right:16,background:"rgba(255,255,255,0.15)",border:"1px solid rgba(255,255,255,0.2)",color:"#fff",fontSize:13,fontWeight:600,borderRadius:10,padding:"6px 14px",cursor:"pointer",zIndex:50,fontFamily:SAN}}>← Zurück</button>
