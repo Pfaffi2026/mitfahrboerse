@@ -385,6 +385,7 @@ function PassengerScreen({rides}){
         <p style={{fontFamily:PD,fontSize:19,fontWeight:700}}>{live.driverName}</p>
         <div style={{marginTop:8}}><RouteBadge routeId={live.routeId} size="lg"/></div>
       </div>
+      <button onClick={async()=>{const mine=(live.confirmed||[]).filter(p=>p.deviceId===DID);if(!mine.length)return;await dbUpdate(live._id,{confirmed:live.confirmed.filter(p=>p.deviceId!==DID),seatsLeft:live.seatsLeft+mine.length});setDone(false);setSel(null);setName("");}} style={{marginTop:14,background:"#fff",border:`1.5px solid ${RED}`,color:RED,borderRadius:14,padding:"12px 22px",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:SAN}}>Mitfahrt zurückziehen</button>
       <button onClick={()=>{setDone(false);setSel(null);setName("");}} style={{marginTop:10,background:"none",border:"none",color:"#aaa",fontSize:13,cursor:"pointer"}}>Andere Fahrt wählen</button>
     </div>
   );
@@ -395,7 +396,7 @@ function PassengerScreen({rides}){
     async function confirm(){
       if(!name.trim()||alreadyIn||saving)return;
       setSaving(true);
-      await dbUpdate(live._id,{confirmed:[...(live.confirmed||[]),{name:name.trim(),time:nowTime()}],seatsLeft:live.seatsLeft-1});
+      await dbUpdate(live._id,{confirmed:[...(live.confirmed||[]),{name:name.trim(),deviceId:DID,time:nowTime()}],seatsLeft:live.seatsLeft-1});
       setSaving(false);setDone(true);
     }
     async function removeEntry(n){await dbUpdate(live._id,{confirmed:live.confirmed.filter(p=>p.name!==n),seatsLeft:live.seatsLeft+1});}

@@ -1,4 +1,4 @@
-const CACHE = "mitfahr-v17";
+const CACHE = "mitfahr-v18";
 const ASSETS = [
   "/mitfahrboerse/",
   "/mitfahrboerse/index.html",
