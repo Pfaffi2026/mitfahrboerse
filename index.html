@@ -675,8 +675,8 @@ function RequestCard({req,isOwn}){
 }
 
 // ── TAB BAR ───────────────────────────────────────────────────
-function TabBar({tab,setTab}){
-  return <div style={{background:"rgba(255,255,255,0.97)",backdropFilter:"blur(12px)",borderTop:"1px solid rgba(0,0,0,0.08)",display:"flex",padding:"8px 0 max(env(safe-area-inset-bottom,0px) + 8px, 22px)",flexShrink:0}}>{[{id:"driver",emoji:"🚗",label:"Fahrer"},{id:"passenger",emoji:"🙋",label:"Mitfahrer"}].map(t=><button key={t.id} onClick={()=>setTab(t.id)} style={{flex:1,background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3,padding:"4px 0",opacity:tab===t.id?1:0.35,transition:"opacity 0.15s"}}><span style={{fontSize:26}}>{t.emoji}</span><span style={{fontSize:10,fontWeight:tab===t.id?700:500,color:tab===t.id?GREEN:"#888"}}>{t.label}</span></button>)}</div>;
+function TabBar({tab,setTab,requestCount}){
+  return <div style={{background:"rgba(255,255,255,0.97)",backdropFilter:"blur(12px)",borderTop:"1px solid rgba(0,0,0,0.08)",display:"flex",padding:"8px 0 max(env(safe-area-inset-bottom,0px) + 8px, 22px)",flexShrink:0}}>{[{id:"driver",emoji:"🚗",label:"Fahrer"},{id:"passenger",emoji:"🙋",label:"Mitfahrer"},{id:"requests",emoji:"📋",label:"Anfragen"}].map(t=><button key={t.id} onClick={()=>setTab(t.id)} style={{flex:1,background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3,padding:"4px 0",opacity:tab===t.id?1:0.35,transition:"opacity 0.15s"}}><span style={{fontSize:26,position:"relative"}}>{t.emoji}{t.id==="requests"&&requestCount>0&&<span style={{position:"absolute",top:-4,right:-10,background:RED,color:"#fff",fontSize:9,fontWeight:700,borderRadius:8,padding:"1px 5px"}}>{requestCount}</span>}</span><span style={{fontSize:10,fontWeight:tab===t.id?700:500,color:tab===t.id?GREEN:"#888"}}>{t.label}</span></button>)}</div>;
 }
 
 // ── IN-APP TOAST ──────────────────────────────────────────────
@@ -687,11 +687,12 @@ function Toast({msg,visible}){
 // ── ROOT ──────────────────────────────────────────────────────
 function App(){
   const[ready,setReady]=useState(window._dbReady||false);
-  const[role,setRole]=useState(null);
-  const[tab,setTab]=useState("driver");
+  const _open=(()=>{try{const o=new URLSearchParams(location.search).get("open");return["driver","passenger","requests"].includes(o)?o:null;}catch(e){return null;}})();
+  const[role,setRole]=useState(_open?(_open==="passenger"?"passenger":"driver"):null);
+  const[tab,setTab]=useState(_open||"driver");
   const[rides,setRides]=useState([]);
   const[requests,setRequests]=useState([]);
-  const[selectedRoute,setSelectedRoute]=useState(null); // step1
+  const[selectedRoute,setSelectedRoute]=useState(_open?"hin":null); // step1
   const[presetRoute,setPresetRoute]=useState(null);
   const[toast,setToast]=useState({msg:"",visible:false});
   const[notifPerm,setNotifPerm]=useState("Notification" in window?Notification.permission:"unsupported");
@@ -707,6 +708,13 @@ function App(){
     else if(p==="denied")showToast("Benachrichtigungen sind im Browser blockiert");
     else if(p==="error")showToast("Push konnte nicht aktiviert werden");
   }
+
+  useEffect(()=>{
+    if(!("serviceWorker" in navigator))return;
+    const h=e=>{const o=e.data&&e.data.type==="open"&&e.data.open;if(["driver","passenger","requests"].includes(o)){setSelectedRoute(r=>r||"hin");setRole(r=>r||(o==="passenger"?"passenger":"driver"));setTab(o);}};
+    navigator.serviceWorker.addEventListener("message",h);
+    return()=>navigator.serviceWorker.removeEventListener("message",h);
+  },[]);
 
   useEffect(()=>{
     if(window._dbReady){setReady(true);return;}

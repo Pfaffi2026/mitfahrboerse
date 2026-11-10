@@ -1,4 +1,4 @@
-const CACHE = "mitfahr-v15";
+const CACHE = "mitfahr-v17";
 const ASSETS = [
   "/mitfahrboerse/",
   "/mitfahrboerse/index.html",
@@ -25,17 +25,23 @@ try {
       icon: "/mitfahrboerse/icon-192.png",
       badge: "/mitfahrboerse/icon-192.png",
       tag: d.tag || "mitfahr",
-      data: { url: d.url || "/mitfahrboerse/" }
+      data: { url: d.url || "/mitfahrboerse/", open: d.open || "" }
     });
   });
 } catch (err) { /* offline: Push-Teil überspringen, App-Cache funktioniert weiter */ }
 
 self.addEventListener("notificationclick", e => {
   e.notification.close();
-  const url = (e.notification.data && e.notification.data.url) || "/mitfahrboerse/";
+  const d = e.notification.data || {};
+  const url = d.url || "/mitfahrboerse/";
   e.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then(list => {
-      for (const c of list) { if (c.url.includes("/mitfahrboerse/") && "focus" in c) return c.focus(); }
+      for (const c of list) {
+        if (c.url.includes("/mitfahrboerse/") && "focus" in c) {
+          c.postMessage({ type: "open", open: d.open || "" });
+          return c.focus();
+        }
+      }
       return clients.openWindow(url);
     })
   );
